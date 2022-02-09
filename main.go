@@ -16,9 +16,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type BinanceAuth struct {
-	Key string `json:"api_key"`
-}
 type Asset struct {
 	Balance       float64        `json:"balance"`
 	BuyQty        float64        `json:"buy_qty"`
@@ -85,47 +82,31 @@ func main() {
 }
 
 func LatestHandler(w http.ResponseWriter, r *http.Request) {
-	var a BinanceAuth
-	err := json.NewDecoder(r.Body).Decode(&a)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
+	key := r.Header.Get("X-API-Key")
 	// no extra auth. anyone with key can fetch
-	bals := loadExisting(a.Key + ".json")
+	bals := loadExisting(key + ".json")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(bals)
 }
 
 func UpdateHandler(w http.ResponseWriter, r *http.Request) {
-	var a BinanceAuth
-	err := json.NewDecoder(r.Body).Decode(&a)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
 	// This is not secure
+	key := r.Header.Get("X-API-Key")
 	secret := r.Header.Get("X-Secret-Key")
 	go func(key, secret string) {
-		update(context.Background(), a.Key, secret)
+		_, err := update(context.Background(), key, secret)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-	}(a.Key, secret)
-	w.Header().Set("Content-Type", "application/json")
+	}(key, secret)
 	io.WriteString(w, "This will take time. Check back later")
 }
 
 func DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	var a BinanceAuth
-	err := json.NewDecoder(r.Body).Decode(&a)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
+	key := r.Header.Get("X-API-Key")
 	// no extra auth. anyone with key can delete
-	err = os.Remove(a.Key + ".json")
+	err := os.Remove(key + ".json")
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
