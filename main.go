@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -62,6 +63,10 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 }
 
 func main() {
+	cert := flag.String("c", "/etc/ssl/certificate.crt", "cert file")
+	key := flag.String("k", "/etc/ssl/private/private.key", "key file")
+	port := flag.Int("p", 8080, "port to use")
+	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "binalysis pong")
@@ -70,14 +75,10 @@ func main() {
 	r.HandleFunc("/update", UpdateHandler).Methods("POST")
 	r.HandleFunc("/del", UpdateHandler).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
-	srv := &http.Server{
-		Handler:      r,
-		Addr:         "0.0.0.0:8080",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+	if cert != nil && key != nil {
+		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *cert, *key, r))
 	}
-
-	log.Fatal(srv.ListenAndServe())
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
 }
 
 func LatestHandler(w http.ResponseWriter, r *http.Request) {
