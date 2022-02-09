@@ -1,14 +1,15 @@
 <html>
     <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
         <script src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
         <script src="app.js"></script>
         <link rel="stylesheet" href="main.css">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     </head>
     <body class="bg-dark text-light">
-        <div>
-            <table id="main" class="table table-dark table-striped" style="width:100%">
+        <table id="main" class="table table-dark table-striped" style="width:100%">
                 <thead>
                     <th>Symbol</th>
                     <!-- <th>Date</th> -->
@@ -18,28 +19,50 @@
                     <th>Profit</th>
                     <th>Balance</th>
                 </thead>
-                <tbody id="balances">
-                </tbody>
-            </table>
-        </div>
-        <form class="m-3">
-            <div class="form-group">
-                <small class="text-muted">Security is untested. Make sure to only provide a read only api</small>
-                <div class="input-group mb-3 w-50">
-                    <input for="username" id="key" type="text" class="form-control" placeholder="Binance API Key">
-                    <div class="input-group-append">
-                        <button class="btn btn-primary" type="button" onclick="refresh()">Refresh</button>
-                        <button class="btn btn-danger" type="button" disabled onclick="del()">Delete</button>
-                    </div>
+            <tbody id="balances">
+            </tbody>
+        </table>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <form class="m-3">
+                        <div class="form-group">
+                            <small class="text-muted">Security is untested. Make sure to only provide a read only api</small>
+                            <div class="input-group mb-3">
+                                <input for="username" id="key" type="text" class="form-control" placeholder="Binance API Key" autocomplete="on">
+                                <div class="input-group-append">
+                                    <button class="btn btn-primary" type="button" onclick="refresh()">Refresh</button>
+                                    <button class="btn btn-danger" type="button" onclick="del()">Delete</button>
+                                </div>
+                            </div>
+                            <small class="text-muted">Secret key required only when updating</small>
+                            <div class="input-group mb-3">
+                                <input for="password" id="secret" type="password" class="form-control" placeholder="Binance Secret Key">
+                                <div class="input-group-append">
+                                    <button class="btn btn-info" type="button" onclick="update()">Update</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>    
                 </div>
-                <small class="text-muted">Secret key required only when updating</small>
-                <div class="input-group mb-3 w-50">
-                    <input for="password" id="secret" type="password" class="form-control" placeholder="Binance Secret Key">
-                    <div class="input-group-append">
-                        <button class="btn btn-info" type="button" onclick="update()">Update</button>
-                    </div>
+                <div class="col-sm-2">
+                    <h6>Links</h6>
+                    <a href="https://www.binance.com/en/support/faq/360002502072/">Where do I get a key?</a><br>
+                    <a href="https://zapper.fi/dashboard">Zapper</a><br>
+                    <a href="https://debank.com/">Debank</a><br>
+                    <a href="https://enzosv.github.io/cryptowhales">Crypowhales</a><br>
+                    <a href="https://github.com/enzosv/binalysis">Source Code</a>
+                </div>
+                <div class="col-sm-3">
+                    <h6>About</h6>
+                    <p>
+                        This is a tool to help you make sense of your trades on <a href="https://binance.com">binance</a>. 
+                        It uses your api key to summarize your trades and report your average buy and sell prices for each token.
+                        Not all information is captured yet. 
+                    </p>
                 </div>
             </div>
-        </form>
+        </div>
+        
     </body>
 </html>
