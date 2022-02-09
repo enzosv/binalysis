@@ -1,0 +1,45 @@
+<html>
+    <head>
+        <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+        <script src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
+        <script src="app.js"></script>
+        <link rel="stylesheet" href="main.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    </head>
+    <body class="bg-dark text-light">
+        <div>
+            <table id="main" class="table table-dark table-striped" style="width:100%">
+                <thead>
+                    <th>Symbol</th>
+                    <!-- <th>Date</th> -->
+                    <th>Average Buy</th>
+                    <th>Average Sell</th>
+                    <th>Current Price</th>
+                    <th>Profit</th>
+                    <th>Balance</th>
+                </thead>
+                <tbody id="balances">
+                </tbody>
+            </table>
+        </div>
+        <form class="m-3">
+            <div class="form-group">
+                <small class="text-muted">Security is untested. Make sure to only provide a read only api</small>
+                <div class="input-group mb-3 w-50">
+                    <input for="username" id="key" type="text" class="form-control" placeholder="Binance API Key">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="button" onclick="refresh()">Refresh</button>
+                        <button class="btn btn-danger" type="button" disabled onclick="del()">Delete</button>
+                    </div>
+                </div>
+                <small class="text-muted">Secret key required only when updating</small>
+                <div class="input-group mb-3 w-50">
+                    <input for="password" id="secret" type="password" class="form-control" placeholder="Binance Secret Key">
+                    <div class="input-group-append">
+                        <button class="btn btn-info" type="button" onclick="update()">Update</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </body>
+</html>
