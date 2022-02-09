@@ -28,8 +28,8 @@ type Asset struct {
 var STABLECOINS = map[string]bool{
 	"USDT": true,
 	"BUSD": true,
-	"USDC": true,
-	"UST":  true,
+	"USDC": false, // do not fetch pairs against this
+	"UST":  false,
 }
 
 func (a Asset) compute(trades []*binance.Trade) Asset {
@@ -176,7 +176,10 @@ func update(b binance.Binance, balances map[string]Asset, key string) (map[strin
 	bals := balances
 	for k, existing := range bals {
 		var trades []*binance.Trade
-		for c := range STABLECOINS {
+		for c, valid := range STABLECOINS {
+			if !valid {
+				continue
+			}
 			var fromID int64 = 0
 			// TODO: separate into latest usdt and latest busd
 			if existing.LatestTrade != nil {
