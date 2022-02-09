@@ -1,9 +1,10 @@
 # What this is
-This is a tool to help you make sense of your trades on [binance](https://binance.com). 
-It uses your api key to summarize your trades and report your average buy and sell prices for each token.
-Price information is fetched from [coingecko](https://coingecko.com)
+This is a tool to help you make sense of your trades on [binance](https://binance.com). <br>
+It uses your api key to collect your binance trade history and report your average buy and sell prices for each token.<br>
+Price information is fetched from [coingecko](https://coingecko.com)<br>
 Not all information is captured yet. 
 
+[Demo](https://161.117.231.95:8080)
 
 ## Features
 * Report is saved as json for faster fetching next time
@@ -17,7 +18,8 @@ Not all information is captured yet.
 
 ## Disclaimers
 * Not financial advice
-* Make sure to use a read only api key
+* Limited and untested security
+* **Make sure to use a read only api key**
 * Price matching may be inaccurate
 * Work in progress
 
@@ -36,5 +38,6 @@ go get -d
 go build
 ./binalysis
 ```
+open browser at http://localhost:8080
 
 Tips are appreciated. 0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9
