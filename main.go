@@ -63,17 +63,22 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 }
 
 func main() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
 	cert := flag.String("c", "/etc/ssl/certificate.crt", "cert file")
 	key := flag.String("k", "/etc/ssl/private/private.key", "key file")
 	port := flag.Int("p", 8080, "port to use")
+	store := flag.String("s", home+"/binalysis", "Directory for storing json. Relative to home")
 	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "binalysis pong")
 	})
-	r.HandleFunc("/latest", LatestHandler).Methods("GET")
-	r.HandleFunc("/update", UpdateHandler).Methods("POST")
-	r.HandleFunc("/del", UpdateHandler).Methods("DELETE")
+	r.HandleFunc("/latest", LatestHandler(*store)).Methods("GET")
+	r.HandleFunc("/update", UpdateHandler(*store)).Methods("POST")
+	r.HandleFunc("/del", UpdateHandler(*store)).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	if cert != nil && *cert != "" && key != nil && *key != "" {
 		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *cert, *key, r))
@@ -81,62 +86,68 @@ func main() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
 }
 
-func LatestHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	key := r.Header.Get("X-API-Key")
-	// no extra auth. anyone with key can fetch
-	w.Header().Set("Content-Type", "application/json")
-	http.ServeFile(w, r, key+".json")
+func LatestHandler(store string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		key := r.Header.Get("X-API-Key")
+		// no extra auth. anyone with key can fetch
+		w.Header().Set("Content-Type", "application/json")
+		http.ServeFile(w, r, fmt.Sprintf("%s/%s.json", store, key))
+	}
 }
 
-func UpdateHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-	// This is not secure
-	key := r.Header.Get("X-API-Key")
-	secret := r.Header.Get("X-Secret-Key")
-	hmacSigner := &binance.HmacSigner{
-		Key: []byte(secret),
-	}
-	binanceService := binance.NewAPIService(
-		"https://www.binance.com",
-		key,
-		hmacSigner,
-		nil,
-		r.Context(),
-	)
-	b := binance.NewBinance(binanceService)
-	balances, err := fetchBalances(b, key)
-	if err != nil {
-		response := map[string]string{"error": err.Error()}
-		fmt.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-	go func(key, secret string) {
-		_, err := update(b, balances, key)
+func UpdateHandler(store string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		// This is not secure
+		key := r.Header.Get("X-API-Key")
+		secret := r.Header.Get("X-Secret-Key")
+		hmacSigner := &binance.HmacSigner{
+			Key: []byte(secret),
+		}
+		binanceService := binance.NewAPIService(
+			"https://www.binance.com",
+			key,
+			hmacSigner,
+			nil,
+			r.Context(),
+		)
+		b := binance.NewBinance(binanceService)
+		balances, err := fetchBalances(b, key)
 		if err != nil {
+			response := map[string]string{"error": err.Error()}
 			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
 			return
 		}
-		fmt.Println(r.RemoteAddr + " done")
-	}(key, secret)
+		go func(key, store string) {
+			_, err := update(b, balances, fmt.Sprintf("%s/%s.json", store, key))
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			fmt.Println(r.RemoteAddr + " done")
+		}(key, store)
 
-	json.NewEncoder(w).Encode(balances)
+		json.NewEncoder(w).Encode(balances)
+	}
 }
 
-func DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get("X-API-Key")
-	// no extra auth. anyone with key can delete
-	err := os.Remove(key + ".json")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+func DeleteHandler(store string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("X-API-Key")
+		// no extra auth. anyone with key can delete
+		err := os.Remove(fmt.Sprintf("%s/%s.json", store, key))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		response := map[string]bool{"deleted": true}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
 	}
-	response := map[string]bool{"deleted": true}
-	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(response)
 }
 
 func fetchBalances(b binance.Binance, key string) (map[string]Asset, error) {
@@ -171,7 +182,7 @@ func fetchBalances(b binance.Binance, key string) (map[string]Asset, error) {
 	return bals, nil
 }
 
-func update(b binance.Binance, balances map[string]Asset, key string) (map[string]Asset, error) {
+func update(b binance.Binance, balances map[string]Asset, path string) (map[string]Asset, error) {
 	var weight int = 10 // from fetch balance
 	var total int = 0
 	// bals = map[string]Asset{}
@@ -228,7 +239,7 @@ func update(b binance.Binance, balances map[string]Asset, key string) (map[strin
 	if err != nil {
 		return bals, err
 	}
-	err = ioutil.WriteFile(key+".json", file, 0644)
+	err = ioutil.WriteFile(path, file, 0644)
 	return bals, err
 }
 
