@@ -68,6 +68,7 @@ func main() {
 	})
 	r.HandleFunc("/latest", LatestHandler).Methods("GET")
 	r.HandleFunc("/update", UpdateHandler).Methods("POST")
+	r.HandleFunc("/del", UpdateHandler).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	srv := &http.Server{
 		Handler:      r,
