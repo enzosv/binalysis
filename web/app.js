@@ -75,7 +75,7 @@ async function refresh() {
                 } else {
                     color = "text-danger"
                 }
-                row.innerHTML += "<td data-order="+price+">"+price+"<small class='"+color+"'> ("+coin.change.toFixed(2)+"%)</small></td>"
+                row.innerHTML += "<td data-order="+coin.change+">"+price+"<small class='"+color+"'> ("+coin.change.toFixed(2)+"%)</small></td>"
             } else {
                 row.innerHTML += "<td>"+price+"</td>"
             }
