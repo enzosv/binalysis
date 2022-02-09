@@ -25,4 +25,4 @@ jobs:
       run: go build
     
     - name: Run
-      run: nohup ./binalysis &
+      run: nohup ./binalysis
