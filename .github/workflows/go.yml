@@ -21,5 +21,8 @@ jobs:
     - name: Go get
       run: go get -d
 
+    - name: Build
+      run: go build
+    
     - name: Run
-      run: go run main.go
+      run: nohup ./binalysis &
