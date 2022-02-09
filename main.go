@@ -109,7 +109,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response := map[string]string{"error": err.Error()}
 		fmt.Println(err)
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -119,6 +119,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			return
 		}
+		fmt.Println(r.RemoteAddr + " done")
 	}(key, secret)
 
 	json.NewEncoder(w).Encode(balances)
@@ -129,11 +130,12 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	// no extra auth. anyone with key can delete
 	err := os.Remove(key + ".json")
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	io.WriteString(w, "Deleted")
+	response := map[string]bool{"deleted": true}
+	w.WriteHeader(http.StatusInternalServerError)
+	json.NewEncoder(w).Encode(response)
 }
 
 func fetchBalances(b binance.Binance, key string) (map[string]Asset, error) {
@@ -208,7 +210,6 @@ func update(b binance.Binance, balances map[string]Asset, key string) (map[strin
 				}
 
 				total += len(ts)
-				log.Printf("Fetched %d trades\tWeight: %d", total, weight)
 				trades = append(trades, ts...)
 				fromID = ts[len(ts)-1].ID + 1
 			}
@@ -221,12 +222,7 @@ func update(b binance.Binance, balances map[string]Asset, key string) (map[strin
 		}
 		bals[k] = new
 	}
-	// for k, v := range bals {
-	// 	fmt.Printf("%s: %s to %s\n\tAverage buy: %.2f\n\tAverage sell: %.2f\n",
-	// 		k, v.EarliestTrade.Time.Format("2006-01-02"), v.LatestTrade.Time.Format("2006-01-02"),
-	// 		v.Cost/v.BuyQty,
-	// 		v.Revenue/v.SellQty)
-	// }
+	log.Printf("Fetched %d trades", total)
 	file, err := json.Marshal(bals)
 	if err != nil {
 		return bals, err
