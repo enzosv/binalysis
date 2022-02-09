@@ -66,9 +66,9 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "pong")
+		fmt.Fprintf(w, "binalysis pong")
 	})
-	r.HandleFunc("/latest", LatestHandler).Methods("POST")
+	r.HandleFunc("/latest", LatestHandler).Methods("GET")
 	r.HandleFunc("/update", UpdateHandler).Methods("POST")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	srv := &http.Server{
@@ -82,6 +82,7 @@ func main() {
 }
 
 func LatestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	key := r.Header.Get("X-API-Key")
 	// no extra auth. anyone with key can fetch
 	bals := loadExisting(key + ".json")
@@ -90,17 +91,39 @@ func LatestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
 	// This is not secure
 	key := r.Header.Get("X-API-Key")
 	secret := r.Header.Get("X-Secret-Key")
+	hmacSigner := &binance.HmacSigner{
+		Key: []byte(secret),
+	}
+	binanceService := binance.NewAPIService(
+		"https://www.binance.com",
+		key,
+		hmacSigner,
+		nil,
+		r.Context(),
+	)
+	b := binance.NewBinance(binanceService)
+	account, err := fetchAccount(b)
+	if err != nil {
+		response := map[string]string{"error": err.Error()}
+		fmt.Println(err)
+		w.WriteHeader(500)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 	go func(key, secret string) {
-		_, err := update(context.Background(), key, secret)
+		_, err := update(b, account, key)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	}(key, secret)
-	io.WriteString(w, "This will take time. Check back later")
+
+	json.NewEncoder(w).Encode(account)
 }
 
 func DeleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -115,26 +138,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Deleted")
 }
 
-func update(ctx context.Context, key, secret string) (map[string]Asset, error) {
-	hmacSigner := &binance.HmacSigner{
-		Key: []byte(secret),
-	}
-	binanceService := binance.NewAPIService(
-		"https://www.binance.com",
-		key,
-		hmacSigner,
-		nil,
-		ctx,
-	)
-	b := binance.NewBinance(binanceService)
-
-	account, err := b.Account(binance.AccountRequest{
-		RecvWindow: 5 * time.Second,
-		Timestamp:  time.Now(),
-	})
-	if err != nil {
-		return nil, err
-	}
+func update(b binance.Binance, account *binance.Account, key string) (map[string]Asset, error) {
 	bals := loadExisting(key + ".json")
 	// reset balance
 	for k, bal := range bals {
