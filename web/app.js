@@ -68,8 +68,8 @@ async function refresh() {
         }
         
         if(!isNaN(price)){
+            var color
             if(coin.change != undefined) {
-                var color
                 if(coin.change > 0) {
                     color = "text-success"
                 } else {
@@ -79,10 +79,19 @@ async function refresh() {
             } else {
                 row.innerHTML += "<td>"+price+"</td>"
             }
-            
+            let dif = price-buy
+            color = "text-light"
+            if(dif > 0) {
+                color = "text-success"
+            } else {
+                color = "text-danger"
+            }
+            row.innerHTML += "<td class='"+color+"'>"+dif.toFixed(2)+"</td>"
         } else {
             row.innerHTML += "<td></td>"
         }
+
+
         
         // row.innerHTML += "<td>"+profit.toFixed(2)+"</td>"
         if(sell>buy && price>=buy) {
@@ -98,7 +107,8 @@ async function refresh() {
     }
     $('#main').DataTable({
         paging: false,
-        ordering: true
+        ordering: true,
+        order: [[ 4, "desc" ]]
     });
 }
 
