@@ -1,11 +1,11 @@
 async function refresh() {
     const [balanceResponse, coingeckoResponse] = await Promise.all([
         fetch('/latest', {
-            method: 'POST',
+            method: 'GET',
             headers: {
-            'Content-Type': 'application/json;charset=utf-8',
-            },
-            body: JSON.stringify({"api_key":document.getElementById("key").value})
+                'X-API-Key': document.getElementById("key").value,
+                'Accept': 'application/json'
+            }
         }),
         fetch('https://api.coingecko.com/api/v3/coins/list')
     ]);
@@ -101,10 +101,10 @@ async function update() {
     let response = await fetch('/update', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json;charset=utf-8',
-          'X-Secret-Key': document.getElementById("secret").value
-        },
-        body: JSON.stringify({"api_key":document.getElementById("key").value})
+            'X-API-Key': document.getElementById("key").value,
+            'X-Secret-Key': document.getElementById("secret").value
+        }
     })
     let result = await response.json()
+    console.log(result)
 }
