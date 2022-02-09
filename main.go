@@ -84,9 +84,8 @@ func LatestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	key := r.Header.Get("X-API-Key")
 	// no extra auth. anyone with key can fetch
-	bals := loadExisting(key + ".json")
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(bals)
+	http.ServeFile(w, r, key+".json")
 }
 
 func UpdateHandler(w http.ResponseWriter, r *http.Request) {
