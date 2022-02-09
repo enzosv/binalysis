@@ -6,6 +6,9 @@ Not all information is captured yet.
 
 [Demo](https://161.117.231.95:8080)
 
+## Preview
+![preview](https://github.com/enzosv/binalysis/blob/main/screenshot.png)
+
 ## Features
 * Report is saved as json for faster fetching next time
 * Report can be deleted
