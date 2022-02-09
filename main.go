@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -107,7 +106,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 	)
 	b := binance.NewBinance(binanceService)
-	account, err := fetchAccount(b)
+	balances, err := fetchBalances(b, key)
 	if err != nil {
 		response := map[string]string{"error": err.Error()}
 		fmt.Println(err)
@@ -116,14 +115,14 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func(key, secret string) {
-		_, err := update(b, account, key)
+		_, err := update(b, balances, key)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	}(key, secret)
 
-	json.NewEncoder(w).Encode(account)
+	json.NewEncoder(w).Encode(balances)
 }
 
 func DeleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,17 +137,18 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "Deleted")
 }
 
-func update(b binance.Binance, account *binance.Account, key string) (map[string]Asset, error) {
-	bals := loadExisting(key + ".json")
-	// reset balance
-	for k, bal := range bals {
-		new := bal
-		new.Balance = 0
-		bals[k] = new
+func fetchBalances(b binance.Binance, key string) (map[string]Asset, error) {
+	account, err := b.Account(binance.AccountRequest{
+		RecvWindow: 60 * time.Second,
+		Timestamp:  time.Now(),
+	})
+	if err != nil {
+		return nil, err
 	}
+	bals := loadExisting(key + ".json")
 	for _, bal := range account.Balances {
 		value := bal.Free + bal.Locked
-		if value < 0.001 {
+		if value <= 0 {
 			continue
 		}
 		symbol := strings.TrimPrefix(bal.Asset, "LD")
@@ -166,10 +166,15 @@ func update(b binance.Binance, account *binance.Account, key string) (map[string
 
 		bals[symbol] = new
 	}
-	var weight int = 10
+	return bals, nil
+}
+
+func update(b binance.Binance, balances map[string]Asset, key string) (map[string]Asset, error) {
+	var weight int = 10 // from fetch balance
 	var total int = 0
 	// bals = map[string]Asset{}
 	// bals["BTC"] = Asset{0, 0, 0, 0, 0, nil, nil}
+	bals := balances
 	for k, existing := range bals {
 		var trades []*binance.Trade
 		for c := range STABLECOINS {
@@ -187,7 +192,7 @@ func update(b binance.Binance, account *binance.Account, key string) (map[string
 				}
 				ts, err := b.MyTrades(binance.MyTradesRequest{
 					Symbol:     k + c,
-					RecvWindow: 5 * time.Second,
+					RecvWindow: 60 * time.Second,
 					Timestamp:  time.Now(),
 					FromID:     fromID,
 				})
