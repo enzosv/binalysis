@@ -108,3 +108,14 @@ async function update() {
     let result = await response.json()
     console.log(result)
 }
+
+async function del() {
+    let response = await fetch('/delete', {
+        method: 'DELETE',
+        headers: {
+            'X-API-Key': document.getElementById("key").value,
+        }
+    })
+    let result = await response.json()
+    console.log(result)
+}
