@@ -27,6 +27,8 @@ Not all information is captured yet.
 * Better website
 * Capture more data
 * Support more exchanges
+* Notifications for finished update
+* Notifications for price above/below average buy
 
 # How to
 ## Requirements
