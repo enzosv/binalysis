@@ -75,7 +75,7 @@ func main() {
 	r.HandleFunc("/update", UpdateHandler).Methods("POST")
 	r.HandleFunc("/del", UpdateHandler).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
-	if cert != nil && key != nil {
+	if cert != nil && *cert != "" && key != nil && *key != "" {
 		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *cert, *key, r))
 	}
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
