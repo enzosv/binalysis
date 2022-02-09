@@ -1,9 +1,10 @@
 async function refresh() {
+    const api_key = document.getElementById("key").value
     const [balanceResponse, coingeckoResponse] = await Promise.all([
         fetch('/latest', {
             method: 'GET',
             headers: {
-                'X-API-Key': document.getElementById("key").value,
+                'X-API-Key': api_key,
                 'Accept': 'application/json'
             }
         }),
@@ -43,8 +44,12 @@ async function refresh() {
             }
         }
     }
-    
     let tbody = document.getElementById("balances")
+    tbody.innerHTML = ""
+    if(Object.keys(balance).length < 1) {
+        return
+    }
+    window.history.replaceState(null, null, window.origin+"?key="+api_key);
     for([key, val] of Object.entries(balance)) {
         let coin = coins[key.toLowerCase()]
         let price = coin.usd
@@ -119,3 +124,11 @@ async function del() {
     let result = await response.json()
     console.log(result)
 }
+
+$( document ).ready(function() {
+    var urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.has('key')){
+        document.getElementById("key").value = urlParams.get('key')
+        refresh()
+    }
+});
