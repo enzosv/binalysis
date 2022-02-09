@@ -94,13 +94,14 @@ async function refresh() {
 
         
         // row.innerHTML += "<td>"+profit.toFixed(2)+"</td>"
-        if(sell>buy && price>=buy) {
-            row.innerHTML += "<td class='text-success' data-order="+1+">yes</td>"
-        } else if(sell>buy || price>=buy) {
-            row.innerHTML += "<td class='text-warning' data-order="+0+">eh</td>"
-        } else {
-            row.innerHTML += "<td class='text-danger' data-order="+-1+">no</td>"
-        }
+        // if((isNaN(sell) || sell>buy) && price>=buy) {
+        //     row.innerHTML += "<td class='text-success' data-order="+1+">yes</td>"
+        // } else if(sell>buy || price>=buy) {
+        //     console.log(key, sell)
+        //     row.innerHTML += "<td class='text-warning' data-order="+0+">eh</td>"
+        // } else {
+        //     row.innerHTML += "<td class='text-danger' data-order="+-1+">no</td>"
+        // }
         
         row.innerHTML += "<td data-order="+remainingValue+">"+(val["balance"]).toFixed(6)+" ($"+(remainingValue).toFixed(2)+")</td>"
         tbody.appendChild(row)
