@@ -106,11 +106,6 @@ async function refresh() {
         row.innerHTML += "<td data-order="+remainingValue+">"+(val["balance"]).toFixed(6)+" ($"+(remainingValue).toFixed(2)+")</td>"
         tbody.appendChild(row)
     }
-    $('#main').DataTable({
-        paging: false,
-        ordering: true,
-        order: [[ 4, "desc" ]]
-    });
 }
 
 async function update() {
@@ -137,6 +132,11 @@ async function del() {
 }
 
 $( document ).ready(function() {
+    $('#main').DataTable({
+        paging: false,
+        ordering: true,
+        order: [[ 4, "desc" ]]
+    })
     var urlParams = new URLSearchParams(window.location.search)
     if (urlParams.has('key')){
         document.getElementById("key").value = urlParams.get('key')
