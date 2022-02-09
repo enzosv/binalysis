@@ -1,0 +1,16 @@
+name: Simple Job
+on:
+push:
+branches:
+- main
+
+
+jobs:
+build-and-publish:
+  runs-on: self-hosted
+  steps:
+  - uses: actions/checkout@v2
+  - uses: actions/setup-go@v2
+    with:
+      go-version: '1.16.1' # The Go version to download (if necessary) and use.
+  run: go run main.go
