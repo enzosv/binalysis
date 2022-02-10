@@ -1,5 +1,8 @@
 async function refresh() {
     document.getElementById("refresh-btn").disabled = true
+    let status = document.getElementById("status")
+    status.innerHTML = "Refreshing..."
+    status.className = "text-light"
     const api_key = document.getElementById("key").value
     const [balanceResponse, coingeckoResponse] = await Promise.all([
         fetch('/latest', {
@@ -13,12 +16,19 @@ async function refresh() {
     ]);
     const balance = await balanceResponse.json();
     const binance = balance.binance;
+    if(binance == undefined) {
+        document.getElementById("refresh-btn").disabled = false
+        status.className = "text-danger"
+        status.innerHTML = "Something went wrong. Try updating."
+        return
+    }
     const coingecko = await coingeckoResponse.json();
     var token_ids = []
     for([key, val] of Object.entries(binance)) {
         for(var i=0; i<coingecko.length; i++){
             let coin = coingecko[i]
             if(coin.id.includes("wormhole")) {
+                // it's never this
                 continue
             }
             if(coin.symbol.toLowerCase() === key.toLowerCase()) {
@@ -119,9 +129,14 @@ async function refresh() {
         table.order( [[ 3, "desc" ]] ).draw()
     }
     document.getElementById("refresh-btn").disabled = false
+    status.className = "text-light"
+    status.innerHTML = "Last updated: " + new Date(balance.last_update).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric", hour:"numeric", minute:"numeric"})
 }
 
 async function update() {
+    let status = document.getElementById("status")
+    status.className = "text-light"
+    status.innerHTML = "Updating..."
     document.getElementById("update-btn").disabled = true
     let response = await fetch('/update', {
         method: 'POST',
@@ -132,10 +147,20 @@ async function update() {
     })
     let result = await response.json()
     document.getElementById("update-btn").disabled = false
-    console.log(result)
+    if(result.error != undefined) {
+        status.className = "text-danger"
+        status.innerHTML = result.error
+    } else {
+        status.className = "text-light"
+        status.innerHTML = "This will take a while. Check back later."
+    }
+    
 }
 
 async function del() {
+    let status = document.getElementById("status")
+    status.className = "text-light"
+    status.innerHTML = "Deleting..."
     document.getElementById("del-btn").disabled = true
     let response = await fetch('/del', {
         method: 'DELETE',
@@ -145,6 +170,13 @@ async function del() {
     })
     let result = await response.json()
     document.getElementById("del-btn").disabled = true
+    if(result.error != undefined) {
+        status.className = "text-danger"
+        status.innerHTML = "result.error"
+    } else {
+        status.className = "text-light"
+        status.innerHTML = "Deleted"
+    }
     console.log(result)
 }
 
