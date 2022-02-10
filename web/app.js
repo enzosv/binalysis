@@ -11,9 +11,10 @@ async function refresh() {
         fetch('https://api.coingecko.com/api/v3/coins/list')
     ]);
     const balance = await balanceResponse.json();
+    const binance = balance.binance;
     const coingecko = await coingeckoResponse.json();
     var token_ids = []
-    for([key, val] of Object.entries(balance)) {
+    for([key, val] of Object.entries(binance)) {
         for(var i=0; i<coingecko.length; i++){
             let coin = coingecko[i]
             if(coin.id.includes("wormhole")) {
@@ -46,11 +47,11 @@ async function refresh() {
     }
     let tbody = document.getElementById("balances")
     tbody.innerHTML = ""
-    if(Object.keys(balance).length < 1) {
+    if(Object.keys(binance).length < 1) {
         return
     }
     window.history.replaceState(null, null, window.origin+"?key="+api_key);
-    for([key, val] of Object.entries(balance)) {
+    for([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         let price = coin.usd
         let buy = (val["cost"]/val["buy_qty"])
@@ -110,11 +111,11 @@ async function refresh() {
         $('#main').DataTable({
             paging: false,
             ordering: true,
-            order: [[ 4, "desc" ]]
+            order: [[ 3, "desc" ]]
         })
     } else {
         var table = $('#main').DataTable()
-        table.order( [[ 4, "desc" ]] ).draw()
+        table.order( [[ 3, "desc" ]] ).draw()
     }
 }
 

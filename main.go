@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,6 +24,11 @@ type Asset struct {
 	Revenue       float64        `json:"revenue"`
 	EarliestTrade *binance.Trade `json:"earliest_trade"`
 	LatestTrade   *binance.Trade `json:"latest_trade"`
+}
+
+type Payload struct {
+	LastUpdate time.Time        `json:"last_update"`
+	Assets     map[string]Asset `json:"binance"`
 }
 
 var STABLECOINS = map[string]bool{
@@ -64,7 +70,7 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 
 func main() {
 	port := flag.Int("p", 8080, "port to use")
-	store := flag.String("s", "/binalysis", "Directory for storing json. Relative to home")
+	store := flag.String("s", ".", "Directory for storing json. Relative to home")
 	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -74,16 +80,18 @@ func main() {
 	r.HandleFunc("/update", UpdateHandler(*store)).Methods("POST")
 	r.HandleFunc("/del", UpdateHandler(*store)).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
-	fmt.Printf("running at %d\nstoring at %s", *port, *store)
+	fmt.Printf("running at %d\nstoring at %s\n", *port, *store)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
 }
 
 func LatestHandler(store string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("happen")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		key := r.Header.Get("X-API-Key")
 		// no extra auth. anyone with key can fetch
 		w.Header().Set("Content-Type", "application/json")
+		fmt.Printf("%s/%s.json\n", store, key)
 		http.ServeFile(w, r, fmt.Sprintf("%s/%s.json", store, key))
 	}
 }
@@ -94,6 +102,14 @@ func UpdateHandler(store string) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		// This is not secure
 		key := r.Header.Get("X-API-Key")
+		existing := loadExisting(key + ".json")
+		if existing.LastUpdate.Unix() > time.Now().Add(-time.Hour).Unix() {
+			response := map[string]string{"error": "Updated recently. Try again later"}
+			w.WriteHeader(http.StatusTooManyRequests)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		secret := r.Header.Get("X-Secret-Key")
 		hmacSigner := &binance.HmacSigner{
 			Key: []byte(secret),
@@ -105,8 +121,9 @@ func UpdateHandler(store string) http.HandlerFunc {
 			nil,
 			r.Context(),
 		)
+
 		b := binance.NewBinance(binanceService)
-		balances, err := fetchBalances(b, key)
+		payload, err := fetchBalances(b, existing)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
 			fmt.Println(err)
@@ -115,15 +132,14 @@ func UpdateHandler(store string) http.HandlerFunc {
 			return
 		}
 		go func(key, store string) {
-			_, err := update(b, balances, fmt.Sprintf("%s/%s.json", store, key))
+			_, err := update(r.Context(), b, payload.Assets, fmt.Sprintf("%s/%s.json", store, key))
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 			fmt.Println(r.RemoteAddr + " done")
 		}(key, store)
-
-		json.NewEncoder(w).Encode(balances)
+		json.NewEncoder(w).Encode(payload)
 	}
 }
 
@@ -142,15 +158,16 @@ func DeleteHandler(store string) http.HandlerFunc {
 	}
 }
 
-func fetchBalances(b binance.Binance, key string) (map[string]Asset, error) {
+func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 	account, err := b.Account(binance.AccountRequest{
 		RecvWindow: 60 * time.Second,
 		Timestamp:  time.Now(),
 	})
+	payload := Payload{existing.LastUpdate, map[string]Asset{}}
 	if err != nil {
-		return nil, err
+		return payload, err
 	}
-	bals := loadExisting(key + ".json")
+
 	for _, bal := range account.Balances {
 		value := bal.Free + bal.Locked
 		if value <= 0 {
@@ -161,20 +178,21 @@ func fetchBalances(b binance.Binance, key string) (map[string]Asset, error) {
 			continue
 		}
 		var new Asset
-		if existing, ok := bals[symbol]; ok {
-			new = existing
+		if existing_asset, ok := payload.Assets[symbol]; ok {
+			new = existing_asset
 			new.Balance += value
 		} else {
 			new = Asset{}
 			new.Balance = value
 		}
 
-		bals[symbol] = new
+		payload.Assets[symbol] = new
 	}
-	return bals, nil
+	return payload, nil
 }
 
-func update(b binance.Binance, balances map[string]Asset, path string) (map[string]Asset, error) {
+func update(ctx context.Context, b binance.Binance, balances map[string]Asset, path string) (map[string]Asset, error) {
+	last_update := time.Now()
 	var weight int = 10 // from fetch balance
 	var total int = 0
 	// bals = map[string]Asset{}
@@ -227,20 +245,22 @@ func update(b binance.Binance, balances map[string]Asset, path string) (map[stri
 		bals[k] = new
 	}
 	log.Printf("Fetched %d trades", total)
-	file, err := json.Marshal(bals)
+	payload := Payload{last_update, bals}
+	file, err := json.Marshal(payload)
 	if err != nil {
 		return bals, err
 	}
+
 	err = ioutil.WriteFile(path, file, 0644)
 	return bals, err
 }
 
-func loadExisting(path string) map[string]Asset {
+func loadExisting(path string) Payload {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		return map[string]Asset{}
+		return Payload{time.Time{}, map[string]Asset{}}
 	}
-	var payload map[string]Asset
+	var payload Payload
 	json.Unmarshal(content, &payload)
 	return payload
 }
