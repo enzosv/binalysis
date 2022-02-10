@@ -78,7 +78,7 @@ func main() {
 	})
 	r.HandleFunc("/latest", LatestHandler(*store)).Methods("GET")
 	r.HandleFunc("/update", UpdateHandler(*store)).Methods("POST")
-	r.HandleFunc("/del", UpdateHandler(*store)).Methods("DELETE")
+	r.HandleFunc("/del", DeleteHandler(*store)).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	fmt.Printf("running at %d\nstoring at %s\n", *port, *store)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
