@@ -4,7 +4,7 @@ It uses your api key to collect your binance trade history and report your avera
 Price information is fetched from [coingecko](https://coingecko.com)<br>
 Not all information is captured yet. 
 
-[Demo](https://161.117.231.95:8080)
+[Demo](https://binalysis.enzosv.xyz)
 
 ## Preview
 ![preview](https://github.com/enzosv/binalysis/blob/main/screenshot.png)
