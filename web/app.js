@@ -128,6 +128,14 @@ async function refresh() {
         var table = $('#main').DataTable()
         table.order( [[ 3, "desc" ]] ).draw()
     }
+
+    // generate downloadable
+    var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(balance, null, 2));
+    var dlAnchorElem = document.getElementById('my-data');
+    dlAnchorElem.setAttribute("href",     dataStr     );
+    dlAnchorElem.setAttribute("download", "data.json");
+    dlAnchorElem.innerHTML = "My data"
+
     document.getElementById("refresh-btn").disabled = false
     status.className = "text-light"
     status.innerHTML = "Last updated: " + new Date(balance.last_update).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric", hour:"numeric", minute:"numeric"})
