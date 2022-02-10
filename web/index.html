@@ -1,73 +1,95 @@
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
-        <script src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
-        <script src="app.js"></script>
-        <link rel="stylesheet" href="main.css">
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    </head>
-    <body class="bg-dark text-light">
-        <table id="main" class="table table-dark table-striped" style="width:100%">
-                <thead>
-                    <th>Symbol</th>
-                    <!-- <th>Date</th> -->
-                    <th>Average Buy</th>
-                    <th>Average Sell</th>
-                    <th>Current Price</th>
-                    <th>Current - Buy</th>
-                    <!-- <th>Profit</th> -->
-                    <th>Balance</th>
-                </thead>
-            <tbody id="balances">
-            </tbody>
-        </table>
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-sm-6">
-                    <form class="m-3">
-                        <div class="form-group">
-                            <small class="text-muted">Security is untested. Make sure to only provide a read only api</small>
-                            <div class="input-group mb-3">
-                                <input for="username" id="key" type="text" class="form-control" placeholder="Binance API Key" autocomplete="on">
-                                <div class="input-group-append">
-                                    <button id="refresh-btn" class="btn btn-primary" type="button" onclick="refresh()">Refresh</button>
-                                    <button id="del-btn" class="btn btn-danger" type="button" onclick="del()">Delete</button>
-                                </div>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"
+        integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
+    <script src="app.js"></script>
+    <link rel="stylesheet" href="main.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+</head>
+
+<body class="bg-dark text-light">
+    <table id="main" class="table table-dark table-striped table-hover" style="width:100%">
+
+        <thead>
+            <th>Symbol</th>
+            <!-- <th>Date</th> -->
+            <th>Average Buy</th>
+            <th>Average Sell</th>
+            <th>Current Price</th>
+            <th>Current - Buy</th>
+            <!-- <th>Profit</th> -->
+            <th>Balance</th>
+        </thead>
+        <tbody id="balances">
+            <tr>
+                <td colspan="6">
+                    <div>
+                        <p>No data available yet. Enter your <a
+                                href="https://www.binance.com/en/support/faq/360002502072/">binance api</a> details
+                            below to generate a report.</p>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-6">
+                <form class="m-3">
+                    <div class="form-group">
+                        <small class="text-muted">Security is untested. Make sure to only provide a read only
+                            api</small>
+                        <div class="input-group mb-3">
+                            <input for="username" id="key" type="text" class="form-control"
+                                placeholder="Binance API Key" autocomplete="on">
+                            <div class="input-group-append">
+                                <button id="refresh-btn" class="btn btn-primary" type="button"
+                                    onclick="refresh()">Refresh</button>
+                                <button id="del-btn" class="btn btn-danger" type="button"
+                                    onclick="del()">Delete</button>
                             </div>
-                            <small class="text-muted">Secret key required only when updating</small>
-                            <div class="input-group mb-3">
-                                <input for="password" id="secret" type="password" class="form-control" placeholder="Binance Secret Key">
-                                <div class="input-group-append">
-                                    <button id="update-btn" class="btn btn-info" type="button" onclick="update()">Update</button>
-                                </div>
-                            </div>
-                            <small id="status" class="text-light"></small>
                         </div>
-                    </form>    
-                </div>
-                <div class="col-sm-2">
-                    <h6>Links</h6>
-                    <a href="https://www.binance.com/en/support/faq/360002502072/">Where do I get a key?</a><br>
-                    <a href="https://zapper.fi/dashboard">Zapper</a>, 
-                    <a href="https://debank.com/">Debank</a><br>
-                    <a href="https://enzosv.github.io/cryptowhales">Crypowhales</a><br>
-                    <a href="https://github.com/enzosv/binalysis">Source Code</a><br>
-                    <a id="my-data"></a>
-                </div>
-                <div class="col-sm-3">
-                    <h6>About</h6>
-                    <p>
-                        This is a tool to help you make sense of your trades on <a href="https://binance.com">binance</a>. 
-                        It uses your api key to summarize your trades and report your average buy and sell prices for each token.
-                        Not all information is captured yet. 
-                    </p>
-                    <h6>Tips appreciated:</h6>
-                    <p>0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9</p>
-                </div>
+                        <small class="text-muted">Secret key required only when updating</small>
+                        <div class="input-group mb-3">
+                            <input for="password" id="secret" type="password" class="form-control"
+                                placeholder="Binance Secret Key">
+                            <div class="input-group-append">
+                                <button id="update-btn" class="btn btn-info" type="button"
+                                    onclick="update()">Update</button>
+                            </div>
+                        </div>
+                        <small id="status" class="text-light"></small>
+                    </div>
+                </form>
+            </div>
+            <div class="col-sm-2">
+                <h6>Links</h6>
+                <a href="https://www.binance.com/en/support/faq/360002502072/">Where do I get a key?</a><br>
+                <a href="https://zapper.fi/dashboard">Zapper</a>,
+                <a href="https://debank.com/">Debank</a><br>
+                <a href="https://enzosv.github.io/cryptowhales">Crypowhales</a><br>
+                <a href="https://github.com/enzosv/binalysis">Source Code</a><br>
+                <a id="my-data"></a>
+            </div>
+            <div class="col-sm-3">
+                <h6>About</h6>
+                <p>
+                    This is a tool to help you make sense of your trades on <a href="https://binance.com">binance</a>.
+                    It uses your api key to summarize your trades and report your average buy and sell prices for each
+                    token.
+                    Not all information is captured yet.
+                </p>
+                <h6>Tips appreciated</h6>
+                <p>0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9</p>
             </div>
         </div>
-        
-    </body>
+    </div>
+
+</body>
+
 </html>
