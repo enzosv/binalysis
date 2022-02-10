@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  setup:
+  deploy:
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v2
@@ -19,9 +19,5 @@ jobs:
       run: go get -d
     - name: Build
       run: go build
-    
-  run:
-    runs-on: self-hosted
-    steps: 
     - name: Run
       run: ./binalysis &
