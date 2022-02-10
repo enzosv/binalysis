@@ -1,4 +1,5 @@
 async function refresh() {
+    document.getElementById("refresh-btn").disabled = true
     const api_key = document.getElementById("key").value
     const [balanceResponse, coingeckoResponse] = await Promise.all([
         fetch('/latest', {
@@ -117,9 +118,11 @@ async function refresh() {
         var table = $('#main').DataTable()
         table.order( [[ 3, "desc" ]] ).draw()
     }
+    document.getElementById("refresh-btn").disabled = false
 }
 
 async function update() {
+    document.getElementById("update-btn").disabled = true
     let response = await fetch('/update', {
         method: 'POST',
         headers: {
@@ -128,17 +131,20 @@ async function update() {
         }
     })
     let result = await response.json()
+    document.getElementById("update-btn").disabled = false
     console.log(result)
 }
 
 async function del() {
-    let response = await fetch('/delete', {
+    document.getElementById("del-btn").disabled = true
+    let response = await fetch('/del', {
         method: 'DELETE',
         headers: {
             'X-API-Key': document.getElementById("key").value,
         }
     })
     let result = await response.json()
+    document.getElementById("del-btn").disabled = true
     console.log(result)
 }
 
