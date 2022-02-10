@@ -63,14 +63,8 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 }
 
 func main() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	cert := flag.String("c", "/etc/ssl/certificate.crt", "cert file")
-	key := flag.String("k", "/etc/ssl/private/private.key", "key file")
 	port := flag.Int("p", 8080, "port to use")
-	store := flag.String("s", home+"/binalysis", "Directory for storing json. Relative to home")
+	store := flag.String("s", "/binalysis", "Directory for storing json. Relative to home")
 	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -81,9 +75,6 @@ func main() {
 	r.HandleFunc("/del", UpdateHandler(*store)).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	fmt.Printf("running at %d\nstoring at %s", *port, *store)
-	if cert != nil && *cert != "" && key != nil && *key != "" {
-		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *cert, *key, r))
-	}
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
 }
 
