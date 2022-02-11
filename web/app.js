@@ -68,17 +68,29 @@ async function populateTable(balance, status) {
             }
         }
     }
+    console.log(coins)
     let tbody = document.getElementById("balances")
     tbody.innerHTML = ""
     if (Object.keys(binance).length < 1) {
         status.className = "text-warning"
         status.innerHTML = "No trades found. Try providing your secret key and updating."
+        if (!$.fn.dataTable.isDataTable('#main')) {
+            $('#main').DataTable({
+                paging: false,
+                ordering: true,
+                order: [[3, "desc"]]
+            })
+        } else {
+            var table = $('#main').DataTable()
+            table.order([[3, "desc"]]).draw()
+        }
         return
     }
     window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         if(coin == undefined) {
+            console.log("skipping " + key)
             continue
         }
         let price = coin.usd 
