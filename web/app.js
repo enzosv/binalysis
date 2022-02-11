@@ -1,3 +1,4 @@
+var binance;
 async function refresh() {
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
@@ -27,7 +28,7 @@ async function refresh() {
 }
 
 async function populateTable(balance, status) {
-    const binance = balance.binance;
+    binance = balance.binance;
     if (binance == undefined) {
         status.className = "text-danger"
         status.innerHTML = "Something went wrong. Try providing your secret key and updating."
@@ -87,6 +88,10 @@ async function populateTable(balance, status) {
         return
     }
     window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
+    let usd_format = new Intl.NumberFormat(`en-US`, {
+        currency: `USD`,
+        style: 'currency',
+    })
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         if(coin == undefined) {
@@ -98,19 +103,19 @@ async function populateTable(balance, status) {
         let sell = (val["revenue"] / val["sell_qty"])
         let remainingValue = val["balance"] * price
         // let profit = remainingValue+val["revenue"]-val["cost"]
-        var row = document.createElement("tr")
-        row.innerHTML = "<td><a href=https://www.coingecko.com/en/coins/" + coin.id + ">" + key + "</a></td>"
-        // row.innerHTML += "<td><small>"+new Date(val["earliest_trade"]["Time"]).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})+ "<br>"+new Date(val["latest_trade"]["Time"]).toLocaleDateString('en-us', {  year:"numeric", month:"short", day:"numeric"}) +"</small></td>"
+        var row = `<tr >`
+        row = `<td><a price=${price} change=${coin.change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>`
+        // row += "<td><small>"+new Date(val["earliest_trade"]["Time"]).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})+ "<br>"+new Date(val["latest_trade"]["Time"]).toLocaleDateString('en-us', {  year:"numeric", month:"short", day:"numeric"}) +"</small></td>"
         if (!isNaN(buy)) {
-            row.innerHTML += "<td>" + buy.toFixed(2) + "</td>"
+            row += "<td>" + buy.toFixed(2) + "</td>"
         } else {
-            row.innerHTML += "<td><center><div class='loader'></div></center></td>"
+            row += "<td><center><div class='loader'></div></center></td>"
         }
 
         if (!isNaN(sell)) {
-            row.innerHTML += "<td>" + sell.toFixed(2) + "</td>"
+            row += "<td>" + usd_format.format(sell) +"</td>"
         } else {
-            row.innerHTML += "<td></td>"
+            row += "<td></td>"
         }
 
         if (!isNaN(price)) {
@@ -121,9 +126,9 @@ async function populateTable(balance, status) {
                 } else {
                     color = "text-danger"
                 }
-                row.innerHTML += "<td data-order=" + coin.change + ">" + price + "<small class='" + color + "'> (" + coin.change.toFixed(2) + "%)</small></td>"
+                row += "<td data-order=" + coin.change + ">" + usd_format.format(price) + "<small class='" + color + "'> (" + coin.change.toFixed(2) + "%)</small></td>"
             } else {
-                row.innerHTML += "<td>" + price + "</td>"
+                row += "<td>" + usd_format.format(price) + "</td>"
             }
             if (!isNaN(buy)) {
                 let dif = price - buy
@@ -133,29 +138,28 @@ async function populateTable(balance, status) {
                 } else {
                     color = "text-danger"
                 }
-                row.innerHTML += "<td class='" + color + "'>" + dif.toFixed(2) + "</td>"
+                row += "<td class='" + color + "'>" + usd_format.format(dif) + "</td>"
             } else {
-                row.innerHTML += "<td></td>"
+                row += "<td></td>"
             }
 
         } else {
-            row.innerHTML += "<td></td>"
+            row += "<td></td>"
         }
 
 
 
-        // row.innerHTML += "<td>"+profit.toFixed(2)+"</td>"
+        // row += "<td>"+profit.toFixed(2)+"</td>"
         // if((isNaN(sell) || sell>buy) && price>=buy) {
-        //     row.innerHTML += "<td class='text-success' data-order="+1+">yes</td>"
+        //     row += "<td class='text-success' data-order="+1+">yes</td>"
         // } else if(sell>buy || price>=buy) {
         //     console.log(key, sell)
-        //     row.innerHTML += "<td class='text-warning' data-order="+0+">eh</td>"
+        //     row += "<td class='text-warning' data-order="+0+">eh</td>"
         // } else {
-        //     row.innerHTML += "<td class='text-danger' data-order="+-1+">no</td>"
+        //     row += "<td class='text-danger' data-order="+-1+">no</td>"
         // }
-
-        row.innerHTML += "<td data-order=" + remainingValue + ">" + (val["balance"]).toFixed(6) + " ($" + (remainingValue).toFixed(2) + ")</td>"
-        tbody.appendChild(row)
+        row += "</tr>"
+        tbody.innerHTML += row
     }
     if (!$.fn.dataTable.isDataTable('#main')) {
         $('#main').DataTable({
@@ -189,7 +193,9 @@ async function update() {
         method: 'POST',
         headers: {
             'X-API-Key': document.getElementById("key").value,
-            'X-Secret-Key': document.getElementById("secret").value
+            'X-Secret-Key': document.getElementById("secret").value,
+            'pragma': 'no-cache',
+            'cache-control': 'no-cache'
         }
     })
     let result = await response.json()
@@ -235,11 +241,54 @@ async function del() {
     // })
 }
 
-$(document).ready(function () {
+$(document).ready(function ($) {
 
     var urlParams = new URLSearchParams(window.location.search)
     if (urlParams.has('key')) {
         document.getElementById("key").value = urlParams.get('key')
         refresh()
     }
+    $('#main tbody').on('click', 'tr', function () {
+        var table = $('#main').DataTable()
+        var data = table.row( this ).data();
+        var temp = document.createElement('temp')
+        temp.innerHTML = data[0]
+        temp = temp.childNodes[0]
+        let key = temp.innerHTML
+        let asset = binance[key]
+        let buy = val.cost/ val.buy_qty
+        if(isNaN(buy)){
+            return
+        }
+        let sell = val.revenue/val.sell_qty
+
+        let price = temp.getAttribute("price")
+        let change = parseFloat(temp.getAttribute("change"))
+        
+        let usd_format = new Intl.NumberFormat(`en-US`, {
+            currency: `USD`,
+            style: 'currency',
+        })
+        let profit = asset.revenue-asset.cost+asset.balance*price
+        let profit_color = (profit > 0) ? "text-success" : "text-danger"
+        let change_color = (change > 0) ? "text-success" : "text-danger"
+        
+        $("#exampleModal").modal("show");
+        $("#modal-header").html(data[0])
+        $("#modal-body").html(`
+            <p>
+            Average Buy: ${usd_format.format(buy)}<br>
+            Average Sell: ${(isNaN(val.sell)) ? "Unsold" : usd_format.format(sell)}<br>
+            Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
+            Current - Buy: 
+            <br>
+            Balance: ${asset.balance} (${usd_format.format(asset.balance*price)})<br>
+            Cost: ${usd_format.format(asset.cost)}<br>
+            Revenue: ${usd_format.format(asset.revenue)}<br>
+            <br>
+            Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
+            First traded: ${new Date(asset.earliest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}<br>
+            Last traded: ${new Date(asset.latest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}
+        `)
+    } );
 });

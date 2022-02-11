@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="main.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
 </head>
 
 <body class="bg-dark text-light">
@@ -23,7 +25,6 @@
             <th>Current Price</th>
             <th>Current - Buy</th>
             <!-- <th>Profit</th> -->
-            <th>Balance</th>
         </thead>
         <tbody id="balances">
             <tr>
@@ -79,9 +80,7 @@
             <div class="col-sm-3">
                 <h6>About</h6>
                 <p>
-                    This is a tool to help you make sense of your trades on <a href="https://binance.com">binance</a>.
-                    It uses your api key to summarize your trades and report your average buy and sell prices for each
-                    token.
+                    Automatic <a href="https://binance.com">binance</a> portfolio tracker. This uses your api key to find trades against USDT, BUSD, USDC, or TUSD, and generates a report for you.
                     Not all information is captured yet. <b>Possibly inaccurate</b>. More info in <a href="https://github.com/enzosv/binalysis">github</a>.
                 </p>
                 <h6>Tips appreciated</h6>
@@ -90,6 +89,18 @@
         </div>
     </div>
 
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content bg-dark text-light">
+            <div class="modal-header" id="modal-header">
+              ...
+            </div>
+            <div class="modal-body" id="modal-body">
+              ...
+            </div>
+          </div>
+        </div>
+    </div>
 </body>
 
 </html>
