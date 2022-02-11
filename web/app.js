@@ -1,28 +1,37 @@
 async function refresh() {
-    document.getElementById("refresh-btn").disabled = true
+    let btn = document.getElementById("refresh-btn")
+    btn.disabled = true
     let status = document.getElementById("status")
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
-    const api_key = document.getElementById("key").value
-    const [balanceResponse, coingeckoResponse] = await Promise.all([
+    let balanceRequest = await 
         fetch('/latest', {
             method: 'GET',
             headers: {
-                'X-API-Key': api_key,
+                'X-API-Key': document.getElementById("key").value,
                 'Accept': 'application/json'
             }
-        }),
-        fetch('https://api.coingecko.com/api/v3/coins/list')
-    ]);
-    const balance = await balanceResponse.json();
-    const binance = balance.binance;
-    if(binance == undefined) {
-        document.getElementById("refresh-btn").disabled = false
-        status.className = "text-danger"
-        status.innerHTML = "Something went wrong. Try updating."
+        })
+    if(balanceRequest.status == 404) {
+        btn.disabled = false
+        status.className = "text-warning"
+        status.innerHTML = "No trades found. Try providing your secret key and updating."
         return
     }
-    const coingecko = await coingeckoResponse.json();
+    const balanceResponse = await balanceRequest.json();
+    btn.disabled = false
+    populateTable(balanceResponse, status)
+}
+
+async function populateTable(balance, status) {
+    const binance = balance.binance;
+    if(binance == undefined) {
+        status.className = "text-danger"
+        status.innerHTML = "Something went wrong. Try providing your secret key and updating."
+        return
+    }
+    let coingeckoRequest = await fetch('https://api.coingecko.com/api/v3/coins/list')
+    const coingecko = await coingeckoRequest.json();
     var token_ids = []
     for([key, val] of Object.entries(binance)) {
         for(var i=0; i<coingecko.length; i++){
@@ -59,9 +68,11 @@ async function refresh() {
     let tbody = document.getElementById("balances")
     tbody.innerHTML = ""
     if(Object.keys(binance).length < 1) {
+        status.className = "text-warning"
+        status.innerHTML = "No trades found. Try providing your secret key and updating."
         return
     }
-    window.history.replaceState(null, null, window.origin+"?key="+api_key);
+    window.history.replaceState(null, null, window.origin+"?key="+document.getElementById("key").value);
     for([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         let price = coin.usd
@@ -72,7 +83,12 @@ async function refresh() {
         var row = document.createElement("tr")
         row.innerHTML = "<td><a href=https://www.coingecko.com/en/coins/"+coin.id+">"+key+"</a></td>"
         // row.innerHTML += "<td><small>"+new Date(val["earliest_trade"]["Time"]).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})+ "<br>"+new Date(val["latest_trade"]["Time"]).toLocaleDateString('en-us', {  year:"numeric", month:"short", day:"numeric"}) +"</small></td>"
-        row.innerHTML += "<td>"+buy.toFixed(2)+"</td>"
+        if(!isNaN(buy)){
+            row.innerHTML += "<td>"+buy.toFixed(2)+"</td>"
+        } else {
+            row.innerHTML += "<td><center><div class='loader'></div></center></td>"
+        }
+        
         if(!isNaN(sell)){
             row.innerHTML += "<td>"+sell.toFixed(2)+"</td>"
         } else {
@@ -91,14 +107,19 @@ async function refresh() {
             } else {
                 row.innerHTML += "<td>"+price+"</td>"
             }
-            let dif = price-buy
-            color = "text-light"
-            if(dif > 0) {
-                color = "text-success"
+            if(!isNaN(buy)){
+                let dif = price-buy
+                color = "text-light"
+                if(dif > 0) {
+                    color = "text-success"
+                } else {
+                    color = "text-danger"
+                }
+                row.innerHTML += "<td class='"+color+"'>"+dif.toFixed(2)+"</td>"
             } else {
-                color = "text-danger"
+                row.innerHTML += "<td></td>"
             }
-            row.innerHTML += "<td class='"+color+"'>"+dif.toFixed(2)+"</td>"
+            
         } else {
             row.innerHTML += "<td></td>"
         }
@@ -136,9 +157,9 @@ async function refresh() {
     dlAnchorElem.setAttribute("download", "data.json");
     dlAnchorElem.innerHTML = "My data"
 
-    document.getElementById("refresh-btn").disabled = false
     status.className = "text-light"
     status.innerHTML = "Last updated: " + new Date(balance.last_update).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric", hour:"numeric", minute:"numeric"})
+
 }
 
 async function update() {
@@ -159,10 +180,10 @@ async function update() {
         status.className = "text-danger"
         status.innerHTML = result.error
     } else {
+        refresh()
         status.className = "text-light"
         status.innerHTML = "This will take a while. Check back later."
     }
-    
 }
 
 async function del() {
@@ -177,7 +198,7 @@ async function del() {
         }
     })
     let result = await response.json()
-    document.getElementById("del-btn").disabled = true
+    document.getElementById("del-btn").disabled = false
     if(result.error != undefined) {
         status.className = "text-danger"
         status.innerHTML = "result.error"
@@ -186,6 +207,7 @@ async function del() {
         status.innerHTML = "Deleted"
     }
     console.log(result)
+    window.location.reload(true)
 }
 
 $( document ).ready(function() {
