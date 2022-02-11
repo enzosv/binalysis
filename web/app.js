@@ -4,12 +4,15 @@ async function refresh() {
     let status = document.getElementById("status")
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
+    document.getElementById("balances").innerHTML = ""
     let balanceRequest = await
         fetch('/latest', {
             method: 'GET',
             headers: {
                 'X-API-Key': document.getElementById("key").value,
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'pragma': 'no-cache',
+                'cache-control': 'no-cache'
             }
         })
     if (balanceRequest.status == 404) {
@@ -200,8 +203,9 @@ async function del() {
             'X-API-Key': document.getElementById("key").value,
         }
     })
-    let result = await response.json()
     document.getElementById("del-btn").disabled = false
+    let result = await response.json()
+    
     console.log(result)
     if (result.error != undefined) {
         status.className = "text-danger"
@@ -210,13 +214,13 @@ async function del() {
     }
     status.className = "text-light"
     status.innerHTML = "Deleted"
-    document.getElementById("main").innerHTML = ""
+    document.getElementById("balances").innerHTML = ""
 
-    caches.open('v1').then(function (cache) {
-        cache.delete('/latest').then(function (response) {
-            window.location.reload()
-        });
-    })
+    // caches.open('v1').then(function (cache) {
+    //     cache.delete('/latest').then(function (response) {
+    //         window.location.reload()
+    //     });
+    // })
 }
 
 $(document).ready(function () {
