@@ -101,7 +101,7 @@ async function populateTable(balance, status) {
         let price = coin.usd 
         let buy = (val.cost / val.buy_qty)
         let sell = (val.revenue / val.sell_qty)
-        let dif = buy-price
+        let dif = price-buy
         let dif_color = (dif > 0) ? "text-success" : "text-danger"
         let change_color = (coin.change > 0) ? "text-success" : "text-danger"
         tbody.innerHTML += `<tr>
@@ -226,7 +226,7 @@ $(document).ready(function ($) {
         let profit = asset.revenue-asset.cost+asset.balance*price
         let profit_color = (profit > 0) ? "text-success" : "text-danger"
         let change_color = (change > 0) ? "text-success" : "text-danger"
-        let dif = buy-price
+        let dif = price-buy
         let dif_color = (dif > 0) ? "text-success" : "text-danger"
         
         $("#exampleModal").modal("show");
