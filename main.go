@@ -86,9 +86,9 @@ func main() {
 
 func LatestHandler(store string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("happen")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		key := r.Header.Get("X-API-Key")
+
 		// no extra auth. anyone with key can fetch
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Printf("%s/%s.json\n", store, key)
@@ -102,7 +102,8 @@ func UpdateHandler(store string) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		// This is not secure
 		key := r.Header.Get("X-API-Key")
-		existing := loadExisting(key + ".json")
+		path := fmt.Sprintf("%s/%s.json", store, key)
+		existing := loadExisting(path)
 		if existing.LastUpdate.Unix() > time.Now().Add(-time.Hour).Unix() {
 			response := map[string]string{"error": "Updated recently. Try again later"}
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -123,6 +124,7 @@ func UpdateHandler(store string) http.HandlerFunc {
 		)
 
 		b := binance.NewBinance(binanceService)
+		// create payload with nil trades
 		payload, err := fetchBalances(b, existing)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
@@ -131,15 +133,32 @@ func UpdateHandler(store string) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response)
 			return
 		}
-		go func(key, store string) {
-			_, err := update(r.Context(), b, payload.Assets, fmt.Sprintf("%s/%s.json", store, key))
+		file, err := json.Marshal(payload)
+		if err != nil {
+			response := map[string]string{"error": err.Error()}
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		// save payload
+		err = ioutil.WriteFile(path, file, 0644)
+		if err != nil {
+			response := map[string]string{"error": err.Error()}
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		go func(path string) {
+			_, err := update(r.Context(), b, payload.Assets, path)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 			fmt.Println(r.RemoteAddr + " done")
-		}(key, store)
-		json.NewEncoder(w).Encode(payload)
+		}(path)
+		http.ServeFile(w, r, path)
 	}
 }
 
@@ -149,6 +168,7 @@ func DeleteHandler(store string) http.HandlerFunc {
 		// no extra auth. anyone with key can delete
 		err := os.Remove(fmt.Sprintf("%s/%s.json", store, key))
 		if err != nil {
+			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
