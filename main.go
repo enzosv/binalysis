@@ -34,8 +34,10 @@ type Payload struct {
 var STABLECOINS = map[string]bool{
 	"USDT": true,
 	"BUSD": true,
-	"USDC": false, // do not fetch pairs against this
-	"UST":  false,
+	"USDC": true,
+	"TUSD": true,
+	"USDP": false,
+	"UST":  false, // do not fetch pairs against this
 }
 
 func (a Asset) compute(trades []*binance.Trade) Asset {
@@ -91,7 +93,6 @@ func LatestHandler(store string) http.HandlerFunc {
 
 		// no extra auth. anyone with key can fetch
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Printf("%s/%s.json\n", store, key)
 		http.ServeFile(w, r, fmt.Sprintf("%s/%s.json", store, key))
 	}
 }
@@ -244,7 +245,14 @@ func update(ctx context.Context, b binance.Binance, balances map[string]Asset, p
 				weight += 10
 				if err != nil {
 					fmt.Println(k+c, err)
-					break
+					if strings.HasPrefix(err.Error(), "-1003") {
+						fmt.Println("waiting for limit to refresh")
+						time.Sleep(time.Minute)
+						weight = 0
+						continue
+					} else {
+						break
+					}
 				}
 				if len(ts) < 1 {
 					break
