@@ -108,7 +108,7 @@ async function populateTable(balance, status) {
             <td><a price=${price} change=${coin.change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
             <td>${(isNaN(buy)) ? "<div class='loader'>" : usd_format.format(buy)}</td>
             <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
-            <td>
+            <td data-order="${coin.change}">
                 ${(isNaN(price)) ? "" : usd_format.format(price)} 
                 (${(isNaN(coin.change)) ? "" : "<small class='"+change_color+"'>"+coin.change.toFixed(2)+"</small>"})
             </td>
