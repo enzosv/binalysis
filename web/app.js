@@ -99,67 +99,21 @@ async function populateTable(balance, status) {
             continue
         }
         let price = coin.usd 
-        let buy = (val["cost"] / val["buy_qty"])
-        let sell = (val["revenue"] / val["sell_qty"])
-        let remainingValue = val["balance"] * price
-        // let profit = remainingValue+val["revenue"]-val["cost"]
-        var row = `<tr >`
-        row = `<td><a price=${price} change=${coin.change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>`
-        // row += "<td><small>"+new Date(val["earliest_trade"]["Time"]).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})+ "<br>"+new Date(val["latest_trade"]["Time"]).toLocaleDateString('en-us', {  year:"numeric", month:"short", day:"numeric"}) +"</small></td>"
-        if (!isNaN(buy)) {
-            row += "<td>" + buy.toFixed(2) + "</td>"
-        } else {
-            row += "<td><center><div class='loader'></div></center></td>"
-        }
-
-        if (!isNaN(sell)) {
-            row += "<td>" + usd_format.format(sell) +"</td>"
-        } else {
-            row += "<td></td>"
-        }
-
-        if (!isNaN(price)) {
-            var color
-            if (coin.change != undefined) {
-                if (coin.change > 0) {
-                    color = "text-success"
-                } else {
-                    color = "text-danger"
-                }
-                row += "<td data-order=" + coin.change + ">" + usd_format.format(price) + "<small class='" + color + "'> (" + coin.change.toFixed(2) + "%)</small></td>"
-            } else {
-                row += "<td>" + usd_format.format(price) + "</td>"
-            }
-            if (!isNaN(buy)) {
-                let dif = price - buy
-                color = "text-light"
-                if (dif > 0) {
-                    color = "text-success"
-                } else {
-                    color = "text-danger"
-                }
-                row += "<td class='" + color + "'>" + usd_format.format(dif) + "</td>"
-            } else {
-                row += "<td></td>"
-            }
-
-        } else {
-            row += "<td></td>"
-        }
-
-
-
-        // row += "<td>"+profit.toFixed(2)+"</td>"
-        // if((isNaN(sell) || sell>buy) && price>=buy) {
-        //     row += "<td class='text-success' data-order="+1+">yes</td>"
-        // } else if(sell>buy || price>=buy) {
-        //     console.log(key, sell)
-        //     row += "<td class='text-warning' data-order="+0+">eh</td>"
-        // } else {
-        //     row += "<td class='text-danger' data-order="+-1+">no</td>"
-        // }
-        row += "</tr>"
-        tbody.innerHTML += row
+        let buy = (val.cost / val.buy_qty)
+        let sell = (val.revenue / val.sell_qty)
+        let dif = buy-price
+        let dif_color = (dif > 0) ? "text-success" : "text-danger"
+        let change_color = (coin.change > 0) ? "text-success" : "text-danger"
+        tbody.innerHTML += `<tr>
+            <td><a price=${price} change=${coin.change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
+            <td>${(isNaN(buy)) ? "<div class='loader'>" : usd_format.format(buy)}</td>
+            <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
+            <td>
+                ${(isNaN(price)) ? "" : usd_format.format(price)} 
+                (${(isNaN(coin.change)) ? "" : "<small class='"+change_color+"'>"+coin.change.toFixed(2)+"</small>"})
+            </td>
+            <td class=${dif_color}>${(isNaN(dif)) ? "" : usd_format.format(dif)} </td>
+        </tr>`
     }
     if (!$.fn.dataTable.isDataTable('#main')) {
         $('#main').DataTable({
@@ -256,11 +210,11 @@ $(document).ready(function ($) {
         temp = temp.childNodes[0]
         let key = temp.innerHTML
         let asset = binance[key]
-        let buy = val.cost/ val.buy_qty
+        let buy = asset.cost/ asset.buy_qty
         if(isNaN(buy)){
             return
         }
-        let sell = val.revenue/val.sell_qty
+        let sell = asset.revenue/asset.sell_qty
 
         let price = temp.getAttribute("price")
         let change = parseFloat(temp.getAttribute("change"))
@@ -272,6 +226,8 @@ $(document).ready(function ($) {
         let profit = asset.revenue-asset.cost+asset.balance*price
         let profit_color = (profit > 0) ? "text-success" : "text-danger"
         let change_color = (change > 0) ? "text-success" : "text-danger"
+        let dif = buy-price
+        let dif_color = (dif > 0) ? "text-success" : "text-danger"
         
         $("#exampleModal").modal("show");
         $("#modal-header").html(data[0])
@@ -280,13 +236,14 @@ $(document).ready(function ($) {
             Average Buy: ${usd_format.format(buy)}<br>
             Average Sell: ${(isNaN(val.sell)) ? "Unsold" : usd_format.format(sell)}<br>
             Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
-            Current - Buy: 
+            Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
             <br>
             Balance: ${asset.balance} (${usd_format.format(asset.balance*price)})<br>
             Cost: ${usd_format.format(asset.cost)}<br>
             Revenue: ${usd_format.format(asset.revenue)}<br>
             <br>
             Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
+            <small class="text-muted">Withdraws and some trades are not counted in profit</small><br>
             First traded: ${new Date(asset.earliest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}<br>
             Last traded: ${new Date(asset.latest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}
         `)
