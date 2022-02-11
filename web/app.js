@@ -110,7 +110,7 @@ async function populateTable(balance, status) {
             <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
             <td data-order="${coin.change}">
                 ${(isNaN(price)) ? "" : usd_format.format(price)} 
-                (${(isNaN(coin.change)) ? "" : "<small class='"+change_color+"'>"+coin.change.toFixed(2)+"</small>"})
+                ${(isNaN(coin.change)) ? "" : "<small class='"+change_color+"'>("+coin.change.toFixed(2)+")</small>"}
             </td>
             <td class=${dif_color}>${(isNaN(dif)) ? "" : usd_format.format(dif)} </td>
         </tr>`
@@ -239,11 +239,12 @@ $(document).ready(function ($) {
             Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
             <br>
             Balance: ${asset.balance} (${usd_format.format(asset.balance*price)})<br>
+            <small class="text-muted">Locked stake and possibly some other assets are not captured yet</small><br>
             Cost: ${usd_format.format(asset.cost)}<br>
             Revenue: ${usd_format.format(asset.revenue)}<br>
             <br>
             Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
-            <small class="text-muted">Withdraws and some trades are not counted in profit</small><br>
+            <small class="text-muted">${usd_format.format(asset.revenue)}+${usd_format.format(asset.balance*price)}-${usd_format.format(asset.cost)}</small><br>
             First traded: ${new Date(asset.earliest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}<br>
             Last traded: ${new Date(asset.latest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}
         `)
