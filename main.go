@@ -183,7 +183,7 @@ func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 		RecvWindow: 60 * time.Second,
 		Timestamp:  time.Now(),
 	})
-	payload := Payload{existing.LastUpdate, map[string]Asset{}}
+	payload := Payload{time.Now(), map[string]Asset{}}
 	if err != nil {
 		return payload, err
 	}
@@ -212,7 +212,6 @@ func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 }
 
 func update(ctx context.Context, b binance.Binance, balances map[string]Asset, path string) (map[string]Asset, error) {
-	last_update := time.Now()
 	var weight int = 10 // from fetch balance
 	var total int = 0
 	// bals = map[string]Asset{}
@@ -265,7 +264,7 @@ func update(ctx context.Context, b binance.Binance, balances map[string]Asset, p
 		bals[k] = new
 	}
 	log.Printf("Fetched %d trades", total)
-	payload := Payload{last_update, bals}
+	payload := Payload{time.Now(), bals}
 	file, err := json.Marshal(payload)
 	if err != nil {
 		return bals, err
