@@ -7,4 +7,5 @@ require (
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/pkg/errors v0.9.1
 )

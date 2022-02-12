@@ -26,7 +26,11 @@ type PairsResponse struct {
 	} `json:"data"`
 }
 type Asset struct {
-	Balance       float64        `json:"balance"`
+	Balance float64         `json:"balance"`
+	Pairs   map[string]Pair `json:"pairs"`
+}
+
+type Pair struct {
 	BuyQty        float64        `json:"buy_qty"`
 	Cost          float64        `json:"cost"`
 	SellQty       float64        `json:"sell_qty"`
@@ -40,26 +44,21 @@ type Payload struct {
 	Assets     map[string]Asset `json:"binance"`
 }
 
-var STABLECOINS = map[string]bool{
-	"USDT": true,
-	"BUSD": true,
-	"USDC": true,
-	"TUSD": true,
-	"USDP": false,
-	"UST":  false, // do not fetch pairs against this // deprecated in favor of pairs
-}
-
-func (a Asset) compute(trades []*binance.Trade) Asset {
-	earliest := a.EarliestTrade
-	latest := a.LatestTrade
+func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
+	pair := Pair{}
+	if value, ok := a.Pairs[selling]; ok {
+		pair = value
+	}
+	earliest := pair.EarliestTrade
+	latest := pair.LatestTrade
 	for _, t := range trades {
 		if t.IsBuyer {
-			a.BuyQty += t.Qty
-			a.Cost += t.Price * t.Qty
+			pair.BuyQty += t.Qty
+			pair.Cost += t.Price * t.Qty
 		}
 		if !t.IsBuyer {
-			a.SellQty += t.Qty
-			a.Revenue += t.Price * t.Qty
+			pair.SellQty += t.Qty
+			pair.Revenue += t.Price * t.Qty
 		}
 		if earliest == nil {
 			earliest = t
@@ -74,43 +73,37 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 			latest = t
 		}
 	}
-	a.EarliestTrade = earliest
-	a.LatestTrade = latest
-	return a
+	pair.EarliestTrade = earliest
+	pair.LatestTrade = latest
+	new := a
+	if new.Pairs == nil {
+		new.Pairs = map[string]Pair{}
+	}
+	new.Pairs[selling] = pair
+	return new
 }
 
 func main() {
-	// ctx := context.Background()
-	// hmacSigner := &binance.HmacSigner{
-	// 	Key: []byte("t4mc4jHbJXe2AbfMeUj30WLbSirWUeHE5Sh3Sl46nwnyAUeGLzk5Z6zPTeFRLXs2"),
-	// }
-	// binanceService := binance.NewAPIService(
-	// 	"https://api.binance.com",
-	// 	"2OQuI9WIr8s3DmnattmgsGIatK2mAAspLDmAsYHgV0JL83wuTpb33l313OLCAWik",
-	// 	hmacSigner,
-	// 	nil,
-	// 	ctx,
-	// )
-
-	// b := binance.NewBinance(binanceService)
-	// snapshot(ctx, b)
-	// return
 	port := flag.Int("p", 8080, "port to use")
 	store := flag.String("s", ".", "Directory for storing json. Relative to home")
+	verbose := flag.Bool("v", true, "print info logs")
 	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "binalysis pong")
 	})
-	r.HandleFunc("/latest", LatestHandler(*store)).Methods("GET")
-	r.HandleFunc("/update", UpdateHandler(*store)).Methods("POST")
-	r.HandleFunc("/del", DeleteHandler(*store)).Methods("DELETE")
+	r.HandleFunc("/latest", LatestHandler(*store, *verbose)).Methods("GET")
+	r.HandleFunc("/update", UpdateHandler(*store, *verbose)).Methods("POST")
+	r.HandleFunc("/del", DeleteHandler(*store, *verbose)).Methods("DELETE")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
-	fmt.Printf("running at %d\nstoring at %s\n", *port, *store)
+	if *verbose {
+		fmt.Printf("running at %d\nstoring at %s\n", *port, *store)
+	}
+
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
 }
 
-func LatestHandler(store string) http.HandlerFunc {
+func LatestHandler(store string, verbose bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		key := r.Header.Get("X-API-Key")
@@ -121,16 +114,18 @@ func LatestHandler(store string) http.HandlerFunc {
 	}
 }
 
-func UpdateHandler(store string) http.HandlerFunc {
+func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 		// This is not secure
 		key := r.Header.Get("X-API-Key")
 		path := fmt.Sprintf("%s/%s.json", store, key)
 		existing := loadExisting(path)
-		if existing.LastUpdate.Unix() > time.Now().Add(-time.Hour).Unix() {
-			response := map[string]string{"error": "Updated recently. Try again later"}
+		nextAvailable := existing.LastUpdate.Add(time.Minute * 2)
+		if time.Now().Unix() < nextAvailable.Unix() {
+			response := map[string]string{"error": fmt.Sprintf("Updated recently. Try again at %s", nextAvailable.Add(time.Minute).Format("3:04PM"))}
 			w.WriteHeader(http.StatusTooManyRequests)
 			json.NewEncoder(w).Encode(response)
 			return
@@ -149,8 +144,8 @@ func UpdateHandler(store string) http.HandlerFunc {
 		)
 
 		b := binance.NewBinance(binanceService)
-		// create payload with nil trades
-		payload, err := fetchBalances(b, existing)
+
+		payload, err := fetchBalances(b, existing, verbose)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
 			fmt.Println(err)
@@ -175,19 +170,22 @@ func UpdateHandler(store string) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response)
 			return
 		}
-		go func(path string) {
-			_, err := update(r.Context(), b, payload.Assets, path)
+		go func(ctx context.Context, path string) {
+			start := time.Now().Unix()
+			_, err := update(ctx, b, payload, path, verbose)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			fmt.Println(r.RemoteAddr + " done")
-		}(path)
+			if verbose {
+				fmt.Printf("%s done after %d seconds\n", r.RemoteAddr, time.Now().Unix()-start)
+			}
+		}(r.Context(), path)
 		http.ServeFile(w, r, path)
 	}
 }
 
-func DeleteHandler(store string) http.HandlerFunc {
+func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("X-API-Key")
 		// no extra auth. anyone with key can delete
@@ -203,12 +201,19 @@ func DeleteHandler(store string) http.HandlerFunc {
 	}
 }
 
-func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
+func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, error) {
+	// TODO: fetch withdraws, desposits, dust conversions, transfers
+	// TODO: fetch earn distributions and balances
+	// https://www.reddit.com/r/binance/comments/k6b1r7/accessing_earn_with_api/
+	// https://www.binance.com/bapi/earn/v1/private/lending/daily/token/position?pageIndex=2&pageSize=20
+	// https://www.binance.com/bapi/capital/v1/private/streamer/trade/get-user-trades
+	// https://binance-docs.github.io/apidocs/spot/en/#lending-account-user_data
 	account, err := b.Account(binance.AccountRequest{
 		RecvWindow: 60 * time.Second,
 		Timestamp:  time.Now(),
 	})
-	payload := Payload{time.Now(), map[string]Asset{}}
+	// create payload with nil trades
+	payload := Payload{time.Now(), existing.Assets}
 	if err != nil {
 		return payload, err
 	}
@@ -216,15 +221,12 @@ func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 	for _, bal := range account.Balances {
 
 		value := bal.Free + bal.Locked
+		// uncomment to ignore assets with no balance
 		// if value <= 0 {
-		// fmt.Println(bal)
 		// continue
 		// }
 
 		symbol := strings.TrimPrefix(bal.Asset, "LD")
-		if _, ok := STABLECOINS[symbol]; ok {
-			continue
-		}
 		var new Asset
 		if existing_asset, ok := payload.Assets[symbol]; ok {
 			new = existing_asset
@@ -232,21 +234,16 @@ func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 		} else {
 			new = Asset{}
 			new.Balance = value
+			if verbose {
+				fmt.Println("new asset", symbol)
+			}
 		}
 
 		payload.Assets[symbol] = new
 	}
+
 	return payload, nil
 }
-
-// func snapshot(ctx context.Context, b binance.Binance) {
-// 	r, e := b.Snapshot(binance.AccountRequest{
-// 		RecvWindow: 60 * time.Second,
-// 		Timestamp:  time.Now(),
-// 	})
-// 	fmt.Println(e)
-// 	fmt.Println(r)
-// }
 
 func fetchPairs() (PairsResponse, error) {
 	var pairs PairsResponse
@@ -265,89 +262,108 @@ func fetchPairs() (PairsResponse, error) {
 	}
 	return pairs, nil
 }
-func update(ctx context.Context, b binance.Binance, balances map[string]Asset, path string) (map[string]Asset, error) {
-	var weight int = 10 // from fetch balance
-	var total int = 0
-	// bals = map[string]Asset{}
-	// bals["BTC"] = Asset{0, 0, 0, 0, 0, nil, nil}
-	// TODO: Get earn balance https://www.reddit.com/r/binance/comments/k6b1r7/accessing_earn_with_api/
-	//https://www.binance.com/bapi/earn/v1/private/lending/daily/token/position?pageIndex=2&pageSize=20
-	//https://www.binance.com/bapi/capital/v1/private/streamer/trade/get-user-trades
-	// https://binance-docs.github.io/apidocs/spot/en/#lending-account-user_data
+
+func update(ctx context.Context, b binance.Binance, payload Payload, path string, verbose bool) (map[string]Asset, error) {
+
 	pairs, err := fetchPairs()
 	if err != nil {
 		return nil, err
 	}
-	bals := balances
+	bals := payload.Assets
+	var total int = 0
 	for k, existing := range bals {
-		var trades []*binance.Trade
-		for c := range STABLECOINS {
-			valid := false
-			for _, p := range pairs.Data {
-				if p.Buying == k && p.Selling == c {
-					valid = true
-					break
-				}
-			}
-			if !valid {
+		new := existing
+		for _, p := range pairs.Data {
+			if p.Buying != k {
 				continue
 			}
+			var trades []*binance.Trade
+			product := k + p.Selling
 			var fromID int64 = 0
-			// TODO: separate into latest usdt and latest busd
-			if existing.LatestTrade != nil {
-				fromID = existing.LatestTrade.ID
+			if value, ok := existing.Pairs[p.Selling]; ok && value.LatestTrade != nil {
+				// get latest fromID from persisted to save on requests
+				// +1 because mytrades is inclusive on fromid
+				fromID = value.LatestTrade.ID + 1
 			}
-
 			for {
-				if weight >= 1200 {
-					fmt.Println("waiting for limit to refresh")
-					time.Sleep(time.Minute)
-					weight = 0
-				}
+				// keep fetching trades against product until error or < 1 trades returned
 				ts, err := b.MyTrades(binance.MyTradesRequest{
-					Symbol:     k + c,
+					Symbol:     product,
 					RecvWindow: 60 * time.Second,
 					Timestamp:  time.Now(),
 					FromID:     fromID,
 				})
-				weight += 10
 				if err != nil {
-					fmt.Println(k+c, err)
 					if strings.HasPrefix(err.Error(), "-1003") {
-						fmt.Println("waiting for limit to refresh")
+						// api rate limit. Wait
+						// persist while waiting
+						// TODO: do not persist if nothing new since last persist
+
+						go func(bals map[string]Asset, path string, total int, verbose bool) {
+							// ok to ignore persist error. It will be retried
+							// persist despite nothing new to update last_update
+							persist(bals, path, total, verbose)
+
+						}(bals, path, total, verbose)
+						if verbose {
+							fmt.Printf("[%s] Waiting for limit to refresh\n", product)
+						}
 						time.Sleep(time.Minute)
-						weight = 0
+						// fromID not updated so it will be retried on continue
 						continue
 					} else {
+						err = errors.Wrap(err, fmt.Sprintf("[%s] fetching", product))
+						fmt.Println(err)
 						break
 					}
 				}
 				if len(ts) < 1 {
+					// no more trades for this product
 					break
+				}
+				if verbose {
+					fmt.Printf("[%s] fetched %d trades starting from id %d\n", product, len(ts), fromID)
 				}
 
 				total += len(ts)
 				trades = append(trades, ts...)
+				// because mytrades is inclusive on fromid
 				fromID = ts[len(ts)-1].ID + 1
 			}
+			// update asset with fetched product trades
+			// ignore products with no trades
+			if len(trades) > 0 {
+				new = new.compute(p.Selling, trades)
+			}
 		}
-		new := existing.compute(trades)
-		if new.Cost <= 0 {
-			delete(bals, k)
-			// never purchased. ignore
-			continue
-		}
+		// update asset map after fetching all trades for a product
 		bals[k] = new
 	}
-	log.Printf("Fetched %d trades", total)
-	payload := Payload{time.Now(), bals}
+	if verbose {
+		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
+	}
+	// persist despite nothing new to update last_update
+	err = persist(bals, path, total, verbose)
+	return bals, err
+}
+
+func persist(assets map[string]Asset, path string, total int, verbose bool) error {
+	payload := Payload{time.Now(), assets}
 	file, err := json.Marshal(payload)
 	if err != nil {
-		return bals, err
+		err = errors.Wrap(err, "encoding")
+		return err
 	}
-
+	// TODO: encrypt
 	err = ioutil.WriteFile(path, file, 0644)
-	return bals, err
+	if err != nil {
+		err = errors.Wrap(err, "persisting")
+		return err
+	}
+	if verbose {
+		fmt.Printf("%d trades saved\n", total)
+	}
+	return nil
 }
 
 func loadExisting(path string) Payload {
