@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BETA Binalysis</title>
     <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"
         integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
     <script src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
@@ -20,8 +21,9 @@
         <input id="search" type="search" aria-controls="main" placeholder="BTC">
         
         <div class="form-check form-switch d-inline-block">
-            <label class="form-check-label" for="hide-small">Hide small balances</label>
-            <input class="form-check-input" type="checkbox" id="hide-small">
+            <label class="form-check-label" for="hide-small">Hide small balances <small class="text-muted">may be inaccurate</small></label>
+            <input class="form-check-input" type="checkbox" id="hide-small" checked>
+            
         </div>
     </div>
     <table id="main" class="table table-dark table-striped table-hover" style="width:100%">
