@@ -212,10 +212,16 @@ func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, 
 		RecvWindow: 60 * time.Second,
 		Timestamp:  time.Now(),
 	})
-	// create payload with nil trades
-	payload := Payload{time.Now(), existing.Assets}
 	if err != nil {
-		return payload, err
+		return Payload{time.Now(), existing.Assets}, err
+	}
+
+	// zero out balances
+	assets := map[string]Asset{}
+	for i, bal := range existing.Assets {
+		new := bal
+		new.Balance = 0
+		assets[i] = new
 	}
 
 	for _, bal := range account.Balances {
@@ -228,9 +234,9 @@ func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, 
 
 		symbol := strings.TrimPrefix(bal.Asset, "LD")
 		var new Asset
-		if existing_asset, ok := payload.Assets[symbol]; ok {
+		if existing_asset, ok := assets[symbol]; ok {
 			new = existing_asset
-			new.Balance += value
+			new.Balance = value
 		} else {
 			new = Asset{}
 			new.Balance = value
@@ -238,13 +244,10 @@ func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, 
 				fmt.Println("new asset", symbol)
 			}
 		}
-		if payload.Assets == nil {
-			payload.Assets = map[string]Asset{}
-		}
-		payload.Assets[symbol] = new
+		assets[symbol] = new
 	}
 
-	return payload, nil
+	return Payload{time.Now(), assets}, nil
 }
 
 func fetchPairs() (PairsResponse, error) {
