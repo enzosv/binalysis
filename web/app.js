@@ -143,8 +143,8 @@ async function populateTable(balance, status) {
 
         if (val.pairs == undefined) {
             tbody.innerHTML += `<tr>
-            <td>${key}</td>
-            <td><div class='loader'></td>
+            <td data-search="${key}">${key}</td>
+            <td data-search="-1"><div class='loader'></td>
             <td data-order="-1"></td>
             <td></td>
             <td></td>
@@ -179,11 +179,13 @@ async function populateTable(balance, status) {
             </tr>`
         }
     }
+    
     $('#main').DataTable({
         paging: false,
         ordering: true,
         order: [[3, "desc"]]
     })
+    
 
     // generate downloadable
     var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(balance, null, 2));
@@ -261,17 +263,25 @@ $(document).ready(function ($) {
         document.getElementById("key").value = urlParams.get('key')
         refresh()
     }
+    $.fn.dataTable.ext.search.push(
+        function( settings, data, dataIndex ) {                
+            let min = (document.getElementById('hide-small').checked) ? 10 : -1
+            console.log(min)
+            return data[1] > min
+        }
+    )
+    
     $('#search').on('keyup', function () {
+        if (!$.fn.dataTable.isDataTable('#main')) {
+            return
+        }
         var table = $('#main').DataTable()
         table.search(this.value).draw();
     });
     $('#hide-small').on('change', function () {
-        $.fn.dataTable.ext.search.push(
-            function( settings, data, dataIndex ) {                
-                let min = (document.getElementById('hide-small').checked) ? 10 : -1
-                return data[1] > min
-            }
-        )
+        if (!$.fn.dataTable.isDataTable('#main')) {
+            return
+        }
         $('#main').DataTable().draw()
     });
     $('#main tbody').on('click', 'tr', function () {
@@ -303,12 +313,12 @@ $(document).ready(function ($) {
         $("#modal-body").html(`
             <p>
             Average Buy: ${usd_format.format(buy)}<br>
-            Average Sell: ${(isNaN(val.sell)) ? "Unsold" : usd_format.format(sell)}<br>
+            Average Sell: ${(isNaN(sell)) ? "Unsold" : usd_format.format(sell)}<br>
             Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
             Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
             <br>
             Balance: ${asset.balance} (${usd_format.format(asset.balance * price)})<br>
-            <small class="text-muted">Locked stake and possibly some other assets are not captured yet</small><br>
+            <small class="text-muted">May be inaccurate</small><br>
             Cost: ${usd_format.format(asset.pairs.USD.cost)}<br>
             Revenue: ${usd_format.format(asset.pairs.USD.revenue)}<br>
             <br>
