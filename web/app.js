@@ -115,26 +115,22 @@ async function populateTable(balance, status) {
         status.innerHTML = "Something went wrong. Try providing your secret key and updating."
         return
     }
+    
     window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
     if (Object.keys(binance).length < 1) {
         status.className = "text-warning"
         status.innerHTML = "No trades found. Try providing your secret key and updating."
-        if (!$.fn.dataTable.isDataTable('#main')) {
-            $('#main').DataTable({
-                paging: false,
-                ordering: true,
-                order: [[3, "desc"]]
-            })
-        } else {
-            var table = $('#main').DataTable()
-            table.order([[3, "desc"]]).draw()
-        }
         return
     }
     let coingeckoRequest = await fetch('https://api.coingecko.com/api/v3/coins/list')
     const coingecko = await coingeckoRequest.json();
     let coins = await matchCoins(balance.binance, coingecko)
     binance = usdOnly(binance, coins)
+    
+    if ($.fn.dataTable.isDataTable('#main')) {
+        $('#main').DataTable().destroy()
+    }
+    
     let tbody = document.getElementById("balances")
     tbody.innerHTML = ""
     
@@ -182,17 +178,12 @@ async function populateTable(balance, status) {
             </tr>`
         }
     }
-    if (!$.fn.dataTable.isDataTable('#main')) {
-        $('#main').DataTable({
-            paging: false,
-            ordering: true,
-            order: [[3, "desc"]]
-        })
-    } else {
-        var table = $('#main').DataTable()
-        table.order([[3, "desc"]]).draw()
-    }
-
+    $('#main').DataTable({
+        paging: false,
+        ordering: true,
+        order: [[3, "desc"]]
+    })
+    
     // generate downloadable
     var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(balance, null, 2));
     var dlAnchorElem = document.getElementById('my-data');

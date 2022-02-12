@@ -339,21 +339,22 @@ func update(ctx context.Context, b binance.Binance, payload Payload, path string
 			}
 		}
 		// update asset map after fetching all trades for a product
-		bals[k] = new
+		if new.Pairs == nil {
+			// remove untraded
+			if verbose {
+				fmt.Printf("%s untraded. Removing\n", k)
+			}
+			delete(bals, k)
+		} else {
+			bals[k] = new
+		}
+
 	}
 	if verbose {
 		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
 	}
-	// remove untraded
-	assets := map[string]Asset{}
-	for k, a := range bals {
-		if a.Pairs == nil {
-			continue
-		}
-		assets[k] = a
-	}
 	// persist despite nothing new to update last_update
-	err = persist(assets, path, total, verbose)
+	err = persist(bals, path, total, verbose)
 	return bals, err
 }
 
