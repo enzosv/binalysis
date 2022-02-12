@@ -86,7 +86,7 @@ func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 func main() {
 	port := flag.Int("p", 8080, "port to use")
 	store := flag.String("s", ".", "Directory for storing json. Relative to home")
-	verbose := flag.Bool("v", true, "print info logs")
+	verbose := flag.Bool("v", false, "print info logs")
 	flag.Parse()
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		key := r.Header.Get("X-API-Key")
 		path := fmt.Sprintf("%s/%s.json", store, key)
 		existing := loadExisting(path)
-		nextAvailable := existing.LastUpdate.Add(time.Minute * 2)
+		nextAvailable := existing.LastUpdate.Add(time.Minute * 10)
 		if time.Now().Unix() < nextAvailable.Unix() {
 			response := map[string]string{"error": fmt.Sprintf("Updated recently. Try again at %s", nextAvailable.Add(time.Minute).Format("3:04PM"))}
 			w.WriteHeader(http.StatusTooManyRequests)
