@@ -20,6 +20,6 @@ jobs:
     - name: Build
       run: go build
     - name: Run
-      uses: BerniWittmann/background-server-action@latest
+      uses: BerniWittmann/background-server-action@v1.0.4
       with:
         command: ./binalysis
