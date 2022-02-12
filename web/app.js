@@ -73,14 +73,12 @@ function usdOnly(binance, coins) {
         let coin = coins[key.toLowerCase()]
         if(val.pairs == undefined) {
             // console.log("skipping untraded " + key)
+            cleaned[key] = val
             continue
         }
         if(coin == undefined) {
             // console.log("skipping uknown price " + key)
             continue
-        }
-        if(coin.usd == undefined) {
-            console.log(coin)
         }
         var merged = undefined
         for([kk, vv] of Object.entries(val.pairs)) {
@@ -145,7 +143,24 @@ async function populateTable(balance, status) {
         style: 'currency',
     })
     for ([key, val] of Object.entries(binance)) {
+          
+        if(val.pairs == undefined) {
+            tbody.innerHTML += `<tr>
+            <td>${key}</td>
+            <td><div class='loader'></td>
+            <td data-order="-1"></td>
+            <td></td>
+            <td></td>
+            </tr>`
+            continue
+        }
         let coin = coins[key.toLowerCase()]
+        var change = undefined
+        var change_color = ""
+        if(!isNaN(coin.usd_24h_change)){
+            change = coin.usd_24h_change
+            change_color = (change > 0) ? "text-success" : "text-danger"
+        }
         for([kk, vv] of Object.entries(val.pairs)) {
             let buy = (vv.cost / vv.buy_qty)
             let sell = (vv.revenue / vv.sell_qty)
@@ -154,19 +169,13 @@ async function populateTable(balance, status) {
             if(!isNaN(buy)){
                 dif = coin.usd-buy
                 dif_color = (dif > 0) ? "text-success" : "text-danger"
-            }
-            var change = undefined
-            var change_color = ""
-            if(!isNaN(coin.usd_24h_change)){
-                change = coin.usd_24h_change
-                change_color = (change > 0) ? "text-success" : "text-danger"
-            }            
+            }      
             tbody.innerHTML += `<tr>
                 <td><a price=${coin.usd} change=${change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
-                <td>${(isNaN(buy)) ? "<div class='loader'>" : usd_format.format(buy)}</td>
+                <td>${(isNaN(buy)) ? "" : usd_format.format(buy)}</td>
                 <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
                 <td data-order="${change ?? 0}">
-                    ${(isNaN(coin.usd)) ? "" : usd_format.format(coin.usd)} 
+                    ${(isNaN(coin.usd)) ? "" : usd_format.format(coin.usd)}
                     <small class='${change_color}'>${isNaN(change) ? "" : "(" + change.toFixed(2) + "%)"}</small>
                 </td>
                 <td class=${dif_color}>${(isNaN(dif)) ? "" : usd_format.format(dif)} </td>
@@ -268,11 +277,11 @@ $(document).ready(function ($) {
         temp = temp.childNodes[0]
         let key = temp.innerHTML
         let asset = binance[key]
-        let buy = asset.cost/ asset.buy_qty
+        let buy = asset.pairs.USD.cost/ asset.pairs.USD.buy_qty
         if(isNaN(buy)){
             return
         }
-        let sell = asset.revenue/asset.sell_qty
+        let sell = asset.pairs.USD.revenue/asset.pairs.USD.sell_qty
 
         let price = temp.getAttribute("price")
         let change = parseFloat(temp.getAttribute("change"))
@@ -281,7 +290,7 @@ $(document).ready(function ($) {
             currency: `USD`,
             style: 'currency',
         })
-        let profit = asset.revenue-asset.cost+asset.balance*price
+        let profit = asset.pairs.USD.revenue-asset.pairs.USD.cost+asset.balance*price
         let profit_color = (profit > 0) ? "text-success" : "text-danger"
         let change_color = (change > 0) ? "text-success" : "text-danger"
         let dif = price-buy
@@ -298,13 +307,13 @@ $(document).ready(function ($) {
             <br>
             Balance: ${asset.balance} (${usd_format.format(asset.balance*price)})<br>
             <small class="text-muted">Locked stake and possibly some other assets are not captured yet</small><br>
-            Cost: ${usd_format.format(asset.cost)}<br>
-            Revenue: ${usd_format.format(asset.revenue)}<br>
+            Cost: ${usd_format.format(asset.pairs.USD.cost)}<br>
+            Revenue: ${usd_format.format(asset.pairs.USD.revenue)}<br>
             <br>
             Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
-            <small class="text-muted">${usd_format.format(asset.revenue)}+${usd_format.format(asset.balance*price)}-${usd_format.format(asset.cost)}</small><br>
-            First traded: ${new Date(asset.earliest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}<br>
-            Last traded: ${new Date(asset.latest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}
+            <small class="text-muted">${usd_format.format(asset.pairs.USD.revenue)}+${usd_format.format(asset.balance*price)}-${usd_format.format(asset.pairs.USD.cost)}</small><br>
+            First traded: ${new Date(asset.pairs.USD.earliest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}<br>
+            Last traded: ${new Date(asset.pairs.USD.latest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}
         `)
     } );
 });
