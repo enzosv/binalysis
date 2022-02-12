@@ -18,4 +18,4 @@ jobs:
     - name: Fetch dependencies
       run: go get -d
     - name: Run
-      run: go run main.go
+      run: go run main.go &
