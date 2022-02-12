@@ -72,36 +72,38 @@ function usdOnly(binance, coins) {
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         if(val.pairs == undefined) {
-            console.log("skipping untraded " + key)
+            // console.log("skipping untraded " + key)
             continue
         }
         if(coin == undefined) {
-            console.log("skipping uknown price " + key)
+            // console.log("skipping uknown price " + key)
             continue
         }
         if(coin.usd == undefined) {
             console.log(coin)
         }
-        var merged
+        var merged = undefined
         for([kk, vv] of Object.entries(val.pairs)) {
-            if (kk in usd_stablecoins) {
-                delete val.pairs[kk]
-                if(merged == undefined) {
-                    merged = vv
-                } else {
-                    merged.buy_qty += vv.buy_qty
-                    merged.cost += vv.cost
-                    merged.sell_qty +=vv.sell_qty
-                    merged.revenue += vv.revenue
-                    if(new Date(merged.earliest_trade.Time) < new Date(vv.earliest_trade.Time)){
-                        merged.earliest_trade = vv.earliest_trade
-                    }
-                    if(new Date(merged.latest_trade.Time) < new Date(vv.latest_trade.Time)){
-                        merged.latest_trade = vv.latest_trade
-                    }
-                }
+            if (!kk in usd_stablecoins) {
+                continue
+            }
+            delete val.pairs[kk]
+            if(merged == undefined) {
+                merged = vv
+                continue
+            }
+            merged.buy_qty += vv.buy_qty
+            merged.cost += vv.cost
+            merged.sell_qty +=vv.sell_qty
+            merged.revenue += vv.revenue
+            if(new Date(merged.earliest_trade.Time) < new Date(vv.earliest_trade.Time)){
+                merged.earliest_trade = vv.earliest_trade
+            }
+            if(new Date(merged.latest_trade.Time) < new Date(vv.latest_trade.Time)){
+                merged.latest_trade = vv.latest_trade
             }
         }
+        // remove non usd pairs
         val.pairs = {"USD": merged}
         cleaned[key] = val
     }
