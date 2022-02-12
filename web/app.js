@@ -31,7 +31,7 @@ async function matchCoins(binance, coingeckolist) {
     var token_ids = []
     var coins = {}
     for ([symbol, asset] of Object.entries(binance)) {
-        if(asset.pairs == undefined) {
+        if (asset.pairs == undefined) {
             continue
         }
         for (var i = 0; i < coingeckolist.length; i++) {
@@ -40,9 +40,9 @@ async function matchCoins(binance, coingeckolist) {
                 // it's never this
                 continue
             }
-            if(coin.symbol.toLowerCase() == symbol.toLowerCase()) {
+            if (coin.symbol.toLowerCase() == symbol.toLowerCase()) {
                 token_ids.push(coin.id)
-                coins[symbol.toLowerCase()] = {usd_market_cap: 0}
+                coins[symbol.toLowerCase()] = { usd_market_cap: 0 }
             }
         }
     }
@@ -53,11 +53,11 @@ async function matchCoins(binance, coingeckolist) {
     for ([id, val] of Object.entries(priceResponse)) {
         for (var i = 0; i < coingeckolist.length; i++) {
             let item = coingeckolist[i]
-            if(item.id != id) {
+            if (item.id != id) {
                 continue
             }
             let symbol = item.symbol.toLowerCase()
-            if(coins[symbol].usd_market_cap < val.usd_market_cap) {
+            if (coins[symbol].usd_market_cap < val.usd_market_cap) {
                 val.id = item.id
                 coins[symbol] = val
             }
@@ -67,42 +67,42 @@ async function matchCoins(binance, coingeckolist) {
 }
 
 function usdOnly(binance, coins) {
-    const usd_stablecoins = {"USDT":true, "BUSD":true, "USDC":true, "TUSD":true}
+    const usd_stablecoins = { "USDT": true, "BUSD": true, "USDC": true, "TUSD": true }
     var cleaned = {}
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
-        if(val.pairs == undefined) {
+        if (val.pairs == undefined) {
             // console.log("skipping untraded " + key)
             cleaned[key] = val
             continue
         }
-        if(coin == undefined) {
+        if (coin == undefined) {
             // console.log("skipping uknown price " + key)
             continue
         }
         var merged = undefined
-        for([kk, vv] of Object.entries(val.pairs)) {
+        for ([kk, vv] of Object.entries(val.pairs)) {
             if (!kk in usd_stablecoins) {
                 continue
             }
             delete val.pairs[kk]
-            if(merged == undefined) {
+            if (merged == undefined) {
                 merged = vv
                 continue
             }
             merged.buy_qty += vv.buy_qty
             merged.cost += vv.cost
-            merged.sell_qty +=vv.sell_qty
+            merged.sell_qty += vv.sell_qty
             merged.revenue += vv.revenue
-            if(new Date(merged.earliest_trade.Time) < new Date(vv.earliest_trade.Time)){
+            if (new Date(merged.earliest_trade.Time) < new Date(vv.earliest_trade.Time)) {
                 merged.earliest_trade = vv.earliest_trade
             }
-            if(new Date(merged.latest_trade.Time) < new Date(vv.latest_trade.Time)){
+            if (new Date(merged.latest_trade.Time) < new Date(vv.latest_trade.Time)) {
                 merged.latest_trade = vv.latest_trade
             }
         }
         // remove non usd pairs
-        val.pairs = {"USD": merged}
+        val.pairs = { "USD": merged }
         cleaned[key] = val
     }
     return cleaned
@@ -115,7 +115,7 @@ async function populateTable(balance, status) {
         status.innerHTML = "Something went wrong. Try providing your secret key and updating."
         return
     }
-    
+
     window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
     if (Object.keys(binance).length < 1) {
         status.className = "text-warning"
@@ -126,21 +126,21 @@ async function populateTable(balance, status) {
     const coingecko = await coingeckoRequest.json();
     let coins = await matchCoins(balance.binance, coingecko)
     binance = usdOnly(binance, coins)
-    
+
     if ($.fn.dataTable.isDataTable('#main')) {
         $('#main').DataTable().destroy()
     }
-    
+
     let tbody = document.getElementById("balances")
     tbody.innerHTML = ""
-    
+
     let usd_format = new Intl.NumberFormat(`en-US`, {
         currency: `USD`,
         style: 'currency',
     })
     for ([key, val] of Object.entries(binance)) {
-          
-        if(val.pairs == undefined) {
+
+        if (val.pairs == undefined) {
             tbody.innerHTML += `<tr>
             <td>${key}</td>
             <td><div class='loader'></td>
@@ -153,22 +153,22 @@ async function populateTable(balance, status) {
         let coin = coins[key.toLowerCase()]
         var change = undefined
         var change_color = ""
-        if(!isNaN(coin.usd_24h_change)){
+        if (!isNaN(coin.usd_24h_change)) {
             change = coin.usd_24h_change
             change_color = (change > 0) ? "text-success" : "text-danger"
         }
-        for([kk, vv] of Object.entries(val.pairs)) {
+        for ([kk, vv] of Object.entries(val.pairs)) {
             let buy = (vv.cost / vv.buy_qty)
             let sell = (vv.revenue / vv.sell_qty)
             var dif = undefined
             var dif_color = ""
-            if(!isNaN(buy)){
-                dif = coin.usd-buy
+            if (!isNaN(buy)) {
+                dif = coin.usd - buy
                 dif_color = (dif > 0) ? "text-success" : "text-danger"
-            }      
+            }
             tbody.innerHTML += `<tr>
-                <td><a price=${coin.usd} change=${change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
-                <td>${(isNaN(buy)) ? "" : usd_format.format(buy)}</td>
+                <td data-search="${key}"><a price=${coin.usd} change=${change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
+                <td data-search="${val.balance*coin.usd}">${(isNaN(buy)) ? "" : usd_format.format(buy)}</td>
                 <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
                 <td data-order="${change ?? 0}">
                     ${(isNaN(coin.usd)) ? "" : usd_format.format(coin.usd)}
@@ -183,7 +183,7 @@ async function populateTable(balance, status) {
         ordering: true,
         order: [[3, "desc"]]
     })
-    
+
     // generate downloadable
     var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(balance, null, 2));
     var dlAnchorElem = document.getElementById('my-data');
@@ -235,7 +235,7 @@ async function del() {
     })
     document.getElementById("del-btn").disabled = false
     let result = await response.json()
-    
+
     console.log(result)
     if (result.error != undefined) {
         status.className = "text-danger"
@@ -260,33 +260,43 @@ $(document).ready(function ($) {
         document.getElementById("key").value = urlParams.get('key')
         refresh()
     }
+    $('#search').on('keyup', function () {
+        var table = $('#main').DataTable()
+        table.search(this.value).draw();
+    });
+    $('#hide-small').on('change', function () {
+        $.fn.dataTable.ext.search.push(
+            function( settings, data, dataIndex ) {                
+                let min = (document.getElementById('hide-small').checked) ? 10 : -1
+                return data[1] > min
+            }
+        )
+        $('#main').DataTable().draw()
+    });
     $('#main tbody').on('click', 'tr', function () {
         var table = $('#main').DataTable()
-        var data = table.row( this ).data();
+        var data = table.row(this).data();
         var temp = document.createElement('temp')
         temp.innerHTML = data[0]
         temp = temp.childNodes[0]
         let key = temp.innerHTML
         let asset = binance[key]
-        let buy = asset.pairs.USD.cost/ asset.pairs.USD.buy_qty
-        if(isNaN(buy)){
+        let buy = asset.pairs.USD.cost / asset.pairs.USD.buy_qty
+        if (isNaN(buy)) {
             return
         }
-        let sell = asset.pairs.USD.revenue/asset.pairs.USD.sell_qty
+        let sell = asset.pairs.USD.revenue / asset.pairs.USD.sell_qty
 
         let price = temp.getAttribute("price")
         let change = parseFloat(temp.getAttribute("change"))
+
         
-        let usd_format = new Intl.NumberFormat(`en-US`, {
-            currency: `USD`,
-            style: 'currency',
-        })
-        let profit = asset.pairs.USD.revenue-asset.pairs.USD.cost+asset.balance*price
+        let profit = asset.pairs.USD.revenue - asset.pairs.USD.cost + asset.balance * price
         let profit_color = (profit > 0) ? "text-success" : "text-danger"
         let change_color = (change > 0) ? "text-success" : "text-danger"
-        let dif = price-buy
+        let dif = price - buy
         let dif_color = (dif > 0) ? "text-success" : "text-danger"
-        
+
         $("#exampleModal").modal("show");
         $("#modal-header").html(data[0])
         $("#modal-body").html(`
@@ -296,15 +306,15 @@ $(document).ready(function ($) {
             Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
             Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
             <br>
-            Balance: ${asset.balance} (${usd_format.format(asset.balance*price)})<br>
+            Balance: ${asset.balance} (${usd_format.format(asset.balance * price)})<br>
             <small class="text-muted">Locked stake and possibly some other assets are not captured yet</small><br>
             Cost: ${usd_format.format(asset.pairs.USD.cost)}<br>
             Revenue: ${usd_format.format(asset.pairs.USD.revenue)}<br>
             <br>
             Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
-            <small class="text-muted">${usd_format.format(asset.pairs.USD.revenue)}+${usd_format.format(asset.balance*price)}-${usd_format.format(asset.pairs.USD.cost)}</small><br>
-            First traded: ${new Date(asset.pairs.USD.earliest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}<br>
-            Last traded: ${new Date(asset.pairs.USD.latest_trade.Time).toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}
+            <small class="text-muted">${usd_format.format(asset.pairs.USD.revenue)}+${usd_format.format(asset.balance * price)}-${usd_format.format(asset.pairs.USD.cost)}</small><br>
+            First traded: ${new Date(asset.pairs.USD.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
+            Last traded: ${new Date(asset.pairs.USD.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}
         `)
-    } );
+    });
 });
