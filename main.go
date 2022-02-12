@@ -14,8 +14,17 @@ import (
 
 	"github.com/binance-exchange/go-binance"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
+type PairsResponse struct {
+	Data []struct {
+		// Product string `json:"s"`
+		// Type    string `json:"st"`
+		Buying  string `json:"b"`
+		Selling string `json:"q"`
+	} `json:"data"`
+}
 type Asset struct {
 	Balance       float64        `json:"balance"`
 	BuyQty        float64        `json:"buy_qty"`
@@ -37,7 +46,7 @@ var STABLECOINS = map[string]bool{
 	"USDC": true,
 	"TUSD": true,
 	"USDP": false,
-	"UST":  false, // do not fetch pairs against this
+	"UST":  false, // do not fetch pairs against this // deprecated in favor of pairs
 }
 
 func (a Asset) compute(trades []*binance.Trade) Asset {
@@ -71,6 +80,21 @@ func (a Asset) compute(trades []*binance.Trade) Asset {
 }
 
 func main() {
+	// ctx := context.Background()
+	// hmacSigner := &binance.HmacSigner{
+	// 	Key: []byte("t4mc4jHbJXe2AbfMeUj30WLbSirWUeHE5Sh3Sl46nwnyAUeGLzk5Z6zPTeFRLXs2"),
+	// }
+	// binanceService := binance.NewAPIService(
+	// 	"https://api.binance.com",
+	// 	"2OQuI9WIr8s3DmnattmgsGIatK2mAAspLDmAsYHgV0JL83wuTpb33l313OLCAWik",
+	// 	hmacSigner,
+	// 	nil,
+	// 	ctx,
+	// )
+
+	// b := binance.NewBinance(binanceService)
+	// snapshot(ctx, b)
+	// return
 	port := flag.Int("p", 8080, "port to use")
 	store := flag.String("s", ".", "Directory for storing json. Relative to home")
 	flag.Parse()
@@ -190,10 +214,13 @@ func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 	}
 
 	for _, bal := range account.Balances {
+
 		value := bal.Free + bal.Locked
-		if value <= 0 {
-			continue
-		}
+		// if value <= 0 {
+		// fmt.Println(bal)
+		// continue
+		// }
+
 		symbol := strings.TrimPrefix(bal.Asset, "LD")
 		if _, ok := STABLECOINS[symbol]; ok {
 			continue
@@ -212,15 +239,56 @@ func fetchBalances(b binance.Binance, existing Payload) (Payload, error) {
 	return payload, nil
 }
 
+// func snapshot(ctx context.Context, b binance.Binance) {
+// 	r, e := b.Snapshot(binance.AccountRequest{
+// 		RecvWindow: 60 * time.Second,
+// 		Timestamp:  time.Now(),
+// 	})
+// 	fmt.Println(e)
+// 	fmt.Println(r)
+// }
+
+func fetchPairs() (PairsResponse, error) {
+	var pairs PairsResponse
+	res, err := http.Get("https://www.binance.com/bapi/asset/v2/public/asset-service/product/get-products")
+	if err != nil {
+		return pairs, err
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return pairs, errors.Wrap(err, "unable to read response from get-products")
+	}
+	defer res.Body.Close()
+
+	if err := json.Unmarshal(body, &pairs); err != nil {
+		return pairs, errors.Wrap(err, "pairs unmarshal failed")
+	}
+	return pairs, nil
+}
 func update(ctx context.Context, b binance.Binance, balances map[string]Asset, path string) (map[string]Asset, error) {
 	var weight int = 10 // from fetch balance
 	var total int = 0
 	// bals = map[string]Asset{}
 	// bals["BTC"] = Asset{0, 0, 0, 0, 0, nil, nil}
+	// TODO: Get earn balance https://www.reddit.com/r/binance/comments/k6b1r7/accessing_earn_with_api/
+	//https://www.binance.com/bapi/earn/v1/private/lending/daily/token/position?pageIndex=2&pageSize=20
+	//https://www.binance.com/bapi/capital/v1/private/streamer/trade/get-user-trades
+	// https://binance-docs.github.io/apidocs/spot/en/#lending-account-user_data
+	pairs, err := fetchPairs()
+	if err != nil {
+		return nil, err
+	}
 	bals := balances
 	for k, existing := range bals {
 		var trades []*binance.Trade
-		for c, valid := range STABLECOINS {
+		for c := range STABLECOINS {
+			valid := false
+			for _, p := range pairs.Data {
+				if p.Buying == k && p.Selling == c {
+					valid = true
+					break
+				}
+			}
 			if !valid {
 				continue
 			}
