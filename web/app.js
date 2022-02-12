@@ -95,22 +95,24 @@ async function populateTable(balance, status) {
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         if(coin == undefined) {
-            console.log("skipping " + key)
+            // console.log("skipping " + key)
             continue
         }
-        let price = coin.usd 
+        let price = (coin==undefined) ? -1 : coin.usd 
+        let change = (coin==undefined) ? -1 : coin.change
+        let id = (coin==undefined) ? "" : coin.id
         let buy = (val.cost / val.buy_qty)
         let sell = (val.revenue / val.sell_qty)
         let dif = price-buy
         let dif_color = (dif > 0) ? "text-success" : "text-danger"
-        let change_color = (coin.change > 0) ? "text-success" : "text-danger"
+        let change_color = (change > 0) ? "text-success" : "text-danger"
         tbody.innerHTML += `<tr>
-            <td><a price=${price} change=${coin.change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
+            <td><a price=${price} change=${change} href="https://www.coingecko.com/en/coins/${id}">${key}</a></td>
             <td>${(isNaN(buy)) ? "<div class='loader'>" : usd_format.format(buy)}</td>
             <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
-            <td data-order="${coin.change}">
+            <td data-order="${change}">
                 ${(isNaN(price)) ? "" : usd_format.format(price)} 
-                ${(isNaN(coin.change)) ? "" : "<small class='"+change_color+"'>("+coin.change.toFixed(2)+")</small>"}
+                ${(isNaN(change)) ? "" : "<small class='"+change_color+"'>("+change.toFixed(2)+")</small>"}
             </td>
             <td class=${dif_color}>${(isNaN(dif)) ? "" : usd_format.format(dif)} </td>
         </tr>`
