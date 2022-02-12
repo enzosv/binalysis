@@ -344,8 +344,16 @@ func update(ctx context.Context, b binance.Binance, payload Payload, path string
 	if verbose {
 		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
 	}
+	// remove untraded
+	assets := map[string]Asset{}
+	for k, a := range bals {
+		if a.Pairs == nil {
+			continue
+		}
+		assets[k] = a
+	}
 	// persist despite nothing new to update last_update
-	err = persist(bals, path, total, verbose)
+	err = persist(assets, path, total, verbose)
 	return bals, err
 }
 
