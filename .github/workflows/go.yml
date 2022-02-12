@@ -19,5 +19,7 @@ jobs:
       run: go get -d
     - name: Build
       run: go build
+    - name: Kill old
+      run: kill $(lsof -t -i:8080)
     - name: Run
-      run: RUNNER_TRACKING_ID="" && ./binalysis & 
+      run: RUNNER_TRACKING_ID="" && ./binalysis -p 8080 & 
