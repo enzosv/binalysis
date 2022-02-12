@@ -238,7 +238,9 @@ func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, 
 				fmt.Println("new asset", symbol)
 			}
 		}
-
+		if payload.Assets == nil {
+			payload.Assets = map[string]Asset{}
+		}
 		payload.Assets[symbol] = new
 	}
 
