@@ -103,6 +103,7 @@ function usdOnly(binance, coins) {
         }
         // remove non usd pairs
         val.pairs = { "USD": merged }
+        val.coin = coin
         cleaned[key] = val
     }
     return cleaned
@@ -167,7 +168,7 @@ async function populateTable(balance, status) {
                 dif_color = (dif > 0) ? "text-success" : "text-danger"
             }
             tbody.innerHTML += `<tr>
-                <td data-search="${key}"><a price=${coin.usd} change=${change} href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
+                <td data-search="${key}"><a href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
                 <td data-search="${val.balance*coin.usd}">${(isNaN(buy)) ? "" : usd_format.format(buy)}</td>
                 <td>${(isNaN(sell)) ? "" : usd_format.format(sell)}</td>
                 <td data-order="${change ?? 0}">
@@ -276,29 +277,29 @@ $(document).ready(function ($) {
     $('#main tbody').on('click', 'tr', function () {
         var table = $('#main').DataTable()
         var data = table.row(this).data();
-        var temp = document.createElement('temp')
-        temp.innerHTML = data[0]
-        temp = temp.childNodes[0]
-        let key = temp.innerHTML
+        let key = data[0]["@data-search"]
         let asset = binance[key]
         let buy = asset.pairs.USD.cost / asset.pairs.USD.buy_qty
         if (isNaN(buy)) {
             return
         }
         let sell = asset.pairs.USD.revenue / asset.pairs.USD.sell_qty
+        let coin = asset.coin
+        let price = coin.usd
+        let change = (isNaN(coin.change)) ? 0 : coin.change
 
-        let price = temp.getAttribute("price")
-        let change = parseFloat(temp.getAttribute("change"))
-
-        
         let profit = asset.pairs.USD.revenue - asset.pairs.USD.cost + asset.balance * price
         let profit_color = (profit > 0) ? "text-success" : "text-danger"
         let change_color = (change > 0) ? "text-success" : "text-danger"
         let dif = price - buy
         let dif_color = (dif > 0) ? "text-success" : "text-danger"
 
+        let usd_format = new Intl.NumberFormat(`en-US`, {
+            currency: `USD`,
+            style: 'currency',
+        })
         $("#exampleModal").modal("show");
-        $("#modal-header").html(data[0])
+        $("#modal-header").html(data[0].display)
         $("#modal-body").html(`
             <p>
             Average Buy: ${usd_format.format(buy)}<br>
