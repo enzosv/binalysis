@@ -144,7 +144,7 @@ async function populateTable(balance, status) {
         if (val.pairs == undefined) {
             tbody.innerHTML += `<tr>
             <td data-search="${key}">${key}</td>
-            <td data-search="-1"><div class='loader'></td>
+            <td data-search="0"><div class='loader'></td>
             <td data-order="-1"></td>
             <td></td>
             <td></td>
