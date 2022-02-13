@@ -82,8 +82,12 @@ async function refresh(key) {
     binance = await prepData(balanceResponse.binance)
     btn.disabled = false
     populateTable(binance)
+    generateDownloadable(balanceResponse)
     status.className = "text-light"
     status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
+    //refresh again if successful
+    //this makes the dom move to the left??
+    setTimeout(function(){ refresh(key); }, 60000);
 }
 
 function generateDownloadable(balance) {
