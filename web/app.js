@@ -197,9 +197,11 @@ async function populateTable(balance, status) {
             let sell = (vv.revenue / vv.sell_qty)
             var dif = undefined
             var dif_color = ""
-            if (!isNaN(buy)) {
+            var pdif = 0
+            if (!isNaN(buy) && !isNaN(coin.usd)) {
                 dif = coin.usd - buy
                 dif_color = (dif > 0) ? "text-success" : "text-danger"
+                pdif = (coin.usd-buy)/((coin.usd+buy)/2)*100
             }
             tbody.innerHTML += `<tr>
                 <td data-search="${key}"><a href="https://www.coingecko.com/en/coins/${coin.id}">${key}</a></td>
@@ -209,7 +211,9 @@ async function populateTable(balance, status) {
                     ${(isNaN(coin.usd)) ? "" : usd_format.format(coin.usd)}
                     <small class='${change_color}'>${isNaN(change) ? "" : "(" + change.toFixed(2) + "%)"}</small>
                 </td>
-                <td class=${dif_color}>${(isNaN(dif)) ? "" : usd_format.format(dif)} </td>
+                <td data-order="${pdif}" class=${dif_color}>${(isNaN(dif)) ? "" : usd_format.format(dif)} 
+                <small>${isNaN(dif) ? "" : "(" + pdif.toFixed(2) + "%)"}</small>
+                </td>
             </tr>`
         }
     }
@@ -303,11 +307,15 @@ function presentModal(row) {
     let change_color = (change > 0) ? "text-success" : "text-danger"
     let dif = price - buy
     let dif_color = (dif > 0) ? "text-success" : "text-danger"
+    let pdif = (price-buy)/((price+buy)/2)*100
 
     let usd_format = new Intl.NumberFormat(`en-US`, {
         currency: `USD`,
         style: 'currency',
     })
+    let usd_pair = asset.pairs.USD
+
+    
     $("#exampleModal").modal("show");
     $("#modal-header").html(data[0].display)
     $("#modal-body").html(`
@@ -315,16 +323,20 @@ function presentModal(row) {
         Average Buy: ${usd_format.format(buy)}<br>
         Average Sell: ${(isNaN(sell)) ? "Unsold" : usd_format.format(sell)}<br>
         Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
-        Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
+        Current - Buy: <label class="${dif_color}">${usd_format.format(dif)} <small>(${pdif.toFixed(2)}%)</label><br>
         <br>
         Balance: ${asset.balance} (${usd_format.format(asset.balance * price)})<br>
         <small class="text-muted">May be inaccurate</small><br>
-        Cost: ${usd_format.format(asset.pairs.USD.cost)}<br>
-        Revenue: ${usd_format.format(asset.pairs.USD.revenue)}<br>
+        Cost: ${usd_format.format(usd_pair.cost)}<br>
+        Revenue: ${usd_format.format(usd_pair.revenue)}<br>
         <br>
         Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
-        <small class="text-muted">${usd_format.format(asset.pairs.USD.revenue)}+${usd_format.format(asset.balance * price)}-${usd_format.format(asset.pairs.USD.cost)}</small><br>
-        First traded: ${new Date(asset.pairs.USD.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
-        Last traded: ${new Date(asset.pairs.USD.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}
+        <small class="text-muted">${usd_format.format(usd_pair.revenue)}+${usd_format.format(asset.balance * price)}-${usd_format.format(usd_pair.cost)}</small><br>
+        First trade: <br>
+        &nbsp; ${usd_pair.earliest_trade.IsBuyer ? "Bought" : "Sold"} ${usd_pair.earliest_trade.Qty} ${key} for ${usd_format.format(usd_pair.earliest_trade.Price)} on
+        ${new Date(usd_pair.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
+        Last trade: <br>
+        &nbsp; ${usd_pair.latest_trade.IsBuyer ? "Bought" : "Sold"} ${usd_pair.latest_trade.Qty} ${key} for ${usd_format.format(usd_pair.latest_trade.Price)} on
+        ${new Date(usd_pair.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
     `)
 }
