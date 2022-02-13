@@ -128,7 +128,7 @@ function usdOnly(binance, coins) {
             merged.cost += vv.cost
             merged.sell_qty += vv.sell_qty
             merged.revenue += vv.revenue
-            if (new Date(merged.earliest_trade.Time) < new Date(vv.earliest_trade.Time)) {
+            if (new Date(merged.earliest_trade.Time) > new Date(vv.earliest_trade.Time)) {
                 merged.earliest_trade = vv.earliest_trade
             }
             if (new Date(merged.latest_trade.Time) < new Date(vv.latest_trade.Time)) {
