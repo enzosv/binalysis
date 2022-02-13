@@ -70,13 +70,24 @@ async function matchCoins(binance, coingeckolist) {
         }
         for (var i = 0; i < coingeckolist.length; i++) {
             let coin = coingeckolist[i]
+            if(token_ids.includes(coin.id)){
+                continue
+            }
             if (coin.id.includes("wormhole")) {
                 // it's never this
                 continue
             }
+            // TODO: handle IOTA in binance vs miota in coingecko
             if (coin.symbol.toLowerCase() == symbol.toLowerCase()) {
                 token_ids.push(coin.id)
-                coins[symbol.toLowerCase()] = { usd_market_cap: 0 }
+                coins[symbol.toLowerCase()] = undefined
+            }
+            for ([kk, vv] of Object.entries(asset.pairs)) {
+                if (coin.symbol.toLowerCase() != kk.toLowerCase()) {
+                    continue
+                }
+                token_ids.push(coin.id)
+                coins[kk.toLowerCase()] = undefined
             }
         }
     }
@@ -91,7 +102,7 @@ async function matchCoins(binance, coingeckolist) {
                 continue
             }
             let symbol = item.symbol.toLowerCase()
-            if (coins[symbol].usd_market_cap < val.usd_market_cap) {
+            if (coins[symbol] == undefined || coins[symbol].usd_market_cap < val.usd_market_cap) {
                 val.id = item.id
                 coins[symbol] = val
             }
@@ -101,23 +112,27 @@ async function matchCoins(binance, coingeckolist) {
 }
 
 function usdOnly(binance, coins) {
-    const usd_stablecoins = { "USDT": true, "BUSD": true, "USDC": true, "TUSD": true }
+    // const usd_stablecoins = { "USDT": true, "BUSD": true, "USDC": true, "TUSD": true }
+    const usd_stablecoins = ["USDT", "BUSD", "USDC", "TUSD"]
     var cleaned = {}
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         if (val.pairs == undefined) {
-            // console.log("skipping untraded " + key)
+            console.log("skipping untraded " + key)
             cleaned[key] = val
             continue
         }
         if (coin == undefined) {
-            // console.log("skipping uknown price " + key)
+            console.log("skipping uknown price " + key)
             continue
         }
         var merged = undefined
         for ([kk, vv] of Object.entries(val.pairs)) {
-            if (!kk in usd_stablecoins) {
-                continue
+            if (!usd_stablecoins.includes(kk)) {
+                let coin = coins[kk.toLowerCase()]
+                vv.cost *= coin.usd
+                vv.revenue *= coin.usd
+                // TODO: multiply if symbol of earliest and latest trade is not stablecoin
             }
             delete val.pairs[kk]
             if (merged == undefined) {
@@ -333,10 +348,10 @@ function presentModal(row) {
         Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
         <small class="text-muted">${usd_format.format(usd_pair.revenue)}+${usd_format.format(asset.balance * price)}-${usd_format.format(usd_pair.cost)}</small><br>
         First trade: <br>
-        &nbsp; ${usd_pair.earliest_trade.IsBuyer ? "Bought" : "Sold"} ${usd_pair.earliest_trade.Qty} ${key} for ${usd_format.format(usd_pair.earliest_trade.Price)} on
+        &nbsp; ${usd_pair.earliest_trade.IsBuyer ? "Bought" : "Sold"} ${usd_pair.earliest_trade.Qty} ${key} for ${usd_format.format(usd_pair.earliest_trade.Price*usd_pair.earliest_trade.Qty)} on
         ${new Date(usd_pair.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
         Last trade: <br>
-        &nbsp; ${usd_pair.latest_trade.IsBuyer ? "Bought" : "Sold"} ${usd_pair.latest_trade.Qty} ${key} for ${usd_format.format(usd_pair.latest_trade.Price)} on
+        &nbsp; ${usd_pair.latest_trade.IsBuyer ? "Bought" : "Sold"} ${usd_pair.latest_trade.Qty} ${key} for ${usd_format.format(usd_pair.latest_trade.Price*usd_pair.latest_trade.Qty)} on
         ${new Date(usd_pair.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
     `)
 }
