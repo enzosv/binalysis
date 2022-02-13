@@ -26,29 +26,32 @@
             
         </div>
     </div>
-    <table id="main" class="table table-dark table-striped table-hover" style="width:100%">
+    <div class="table-responsive">
+        <table id="main" class="table table-dark table-striped table-hover">
 
-        <thead>
-            <th>Symbol</th>
-            <!-- <th>Date</th> -->
-            <th>Average Buy</th>
-            <th>Average Sell</th>
-            <th>Current Price</th>
-            <th>Current - Buy</th>
-            <!-- <th>Profit</th> -->
-        </thead>
-        <tbody id="balances">
-            <tr>
-                <td colspan="6">
-                    <div>
-                        <p>No data available yet. Enter your <a
-                                href="https://www.binance.com/en/support/faq/360002502072/">binance api</a> details
-                            below to generate a report.</p>
-                    </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+            <thead>
+                <th>Symbol</th>
+                <!-- <th>Date</th> -->
+                <th>Average Buy</th>
+                <th>Average Sell</th>
+                <th>Current Price</th>
+                <th>Current - Buy</th>
+                <!-- <th>Profit</th> -->
+            </thead>
+            <tbody id="balances">
+                <tr>
+                    <td colspan="6">
+                        <div>
+                            <p>No data available yet. Enter your <a
+                                    href="https://www.binance.com/en/support/faq/360002502072/">binance api</a> details
+                                below to generate a report.</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+   
     <div class="container-fluid">
         <div class="row">
             <div class="col-sm-6">
@@ -91,8 +94,8 @@
             <div class="col-sm-3">
                 <h6>About</h6>
                 <p>
-                    Automatic <a href="https://binance.com">binance</a> portfolio tracker. This uses your api key to find trades against USDT, BUSD, USDC, TUSD to generate a report.
-                    <br><b>Balance may be inaccurate.</b> Notably, assets in earn and not in flexible savings are not counted yet. More info in <a href="https://github.com/enzosv/binalysis">github</a>.
+                    Automatic <a href="https://binance.com">binance</a> portfolio tracker. This uses your api key to find trades and generate you a report in USD.
+                    <br><b>May be inaccurate.</b> Assets in <a href="https://www.binance.com/en/earn/">earn</a> but not in flexible savings are not counted yet. More info in <a href="https://github.com/enzosv/binalysis">github</a>.
                 </p>
                 <h6>Tips appreciated</h6>
                 <p>0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9</p>
