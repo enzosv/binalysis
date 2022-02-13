@@ -46,8 +46,8 @@ async function refresh(key) {
             headers: {
                 'X-API-Key': key,
                 'Accept': 'application/json',
-                'pragma': 'no-cache',
-                'cache-control': 'no-cache'
+                'pragma': 'no-store',
+                'cache-control': 'no-store'
             }
         })
     if (balanceRequest.status == 404) {
@@ -86,8 +86,7 @@ async function refresh(key) {
     status.className = "text-light"
     status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
     //refresh again if successful
-    //this makes the dom move to the left??
-    setTimeout(function(){ refresh(key); }, 60000);
+    setTimeout(function(){ refresh(key); }, 120000);
 }
 
 function generateDownloadable(balance) {
@@ -129,7 +128,14 @@ async function matchCoins(binance, coingeckolist) {
         }
     }
     const priceurl = 'https://api.coingecko.com/api/v3/simple/price?ids=' + token_ids.join(",") + '&vs_currencies=usd&include_24hr_change=true&include_market_cap=true'
-    const priceRequest = await fetch(priceurl)
+    const priceRequest = await fetch(priceurl, { 
+        method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'pragma': 'reload',
+                'cache-control': 'reload'
+            }
+        })
     console.log(priceurl)
     let priceResponse = await priceRequest.json()
     for ([id, val] of Object.entries(priceResponse)) {
@@ -197,7 +203,14 @@ function usdOnly(binance, coins) {
 }
 
 async function prepData(data) {
-    let coingeckoRequest = await fetch('https://api.coingecko.com/api/v3/coins/list')
+    let coingeckoRequest = await fetch('https://api.coingecko.com/api/v3/coins/list', { 
+        method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'pragma': 'force-cache',
+                'cache-control': 'force-cache'
+            }
+        })
     const coingecko = await coingeckoRequest.json();
     let coins = await matchCoins(data, coingecko)
     return usdOnly(data, coins)
