@@ -118,7 +118,7 @@ function usdOnly(binance, coins) {
     for ([key, val] of Object.entries(binance)) {
         let coin = coins[key.toLowerCase()]
         if (val.pairs == undefined) {
-            console.log("skipping untraded " + key)
+            // console.log("skipping untraded " + key)
             cleaned[key] = val
             continue
         }
