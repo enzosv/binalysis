@@ -1,4 +1,38 @@
 var binance;
+
+$(document).ready(function ($) {
+
+    var urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.has('key')) {
+        document.getElementById("key").value = urlParams.get('key')
+        refresh()
+    }
+    $.fn.dataTable.ext.search.push(
+        function( settings, data, dataIndex ) {                
+            let min = (document.getElementById('hide-small').checked) ? 10 : 0
+            return data[1] >= min
+        }
+    )
+    
+    $('#search').on('keyup', function () {
+        if (!$.fn.dataTable.isDataTable('#main')) {
+            return
+        }
+        // TODO: ignore filter
+        var table = $('#main').DataTable()
+        table.search(this.value).draw();
+    });
+    $('#hide-small').on('change', function () {
+        if (!$.fn.dataTable.isDataTable('#main')) {
+            return
+        }
+        $('#main').DataTable().draw()
+    });
+    $('#main tbody').on('click', 'tr', function () {
+        presentModal(this)
+    });
+});
+
 async function refresh() {
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
@@ -248,84 +282,49 @@ async function del() {
     status.className = "text-light"
     status.innerHTML = "Deleted"
     document.getElementById("balances").innerHTML = ""
-
-    // caches.open('v1').then(function (cache) {
-    //     cache.delete('/latest').then(function (response) {
-    //         window.location.reload()
-    //     });
-    // })
 }
 
-$(document).ready(function ($) {
-
-    var urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.has('key')) {
-        document.getElementById("key").value = urlParams.get('key')
-        refresh()
+function presentModal(row) {
+    var table = $('#main').DataTable()
+    var data = table.row(row).data();
+    let key = data[0]["@data-search"]
+    let asset = binance[key]
+    let buy = asset.pairs.USD.cost / asset.pairs.USD.buy_qty
+    if (isNaN(buy)) {
+        return
     }
-    $.fn.dataTable.ext.search.push(
-        function( settings, data, dataIndex ) {                
-            let min = (document.getElementById('hide-small').checked) ? 10 : -1
-            console.log(min)
-            return data[1] > min
-        }
-    )
-    
-    $('#search').on('keyup', function () {
-        if (!$.fn.dataTable.isDataTable('#main')) {
-            return
-        }
-        var table = $('#main').DataTable()
-        table.search(this.value).draw();
-    });
-    $('#hide-small').on('change', function () {
-        if (!$.fn.dataTable.isDataTable('#main')) {
-            return
-        }
-        $('#main').DataTable().draw()
-    });
-    $('#main tbody').on('click', 'tr', function () {
-        var table = $('#main').DataTable()
-        var data = table.row(this).data();
-        let key = data[0]["@data-search"]
-        let asset = binance[key]
-        let buy = asset.pairs.USD.cost / asset.pairs.USD.buy_qty
-        if (isNaN(buy)) {
-            return
-        }
-        let sell = asset.pairs.USD.revenue / asset.pairs.USD.sell_qty
-        let coin = asset.coin
-        let price = coin.usd
-        let change = (isNaN(coin.change)) ? 0 : coin.change
+    let sell = asset.pairs.USD.revenue / asset.pairs.USD.sell_qty
+    let coin = asset.coin
+    let price = coin.usd
+    let change = (isNaN(coin.change)) ? 0 : coin.change
 
-        let profit = asset.pairs.USD.revenue - asset.pairs.USD.cost + asset.balance * price
-        let profit_color = (profit > 0) ? "text-success" : "text-danger"
-        let change_color = (change > 0) ? "text-success" : "text-danger"
-        let dif = price - buy
-        let dif_color = (dif > 0) ? "text-success" : "text-danger"
+    let profit = asset.pairs.USD.revenue - asset.pairs.USD.cost + asset.balance * price
+    let profit_color = (profit > 0) ? "text-success" : "text-danger"
+    let change_color = (change > 0) ? "text-success" : "text-danger"
+    let dif = price - buy
+    let dif_color = (dif > 0) ? "text-success" : "text-danger"
 
-        let usd_format = new Intl.NumberFormat(`en-US`, {
-            currency: `USD`,
-            style: 'currency',
-        })
-        $("#exampleModal").modal("show");
-        $("#modal-header").html(data[0].display)
-        $("#modal-body").html(`
-            <p>
-            Average Buy: ${usd_format.format(buy)}<br>
-            Average Sell: ${(isNaN(sell)) ? "Unsold" : usd_format.format(sell)}<br>
-            Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
-            Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
-            <br>
-            Balance: ${asset.balance} (${usd_format.format(asset.balance * price)})<br>
-            <small class="text-muted">May be inaccurate</small><br>
-            Cost: ${usd_format.format(asset.pairs.USD.cost)}<br>
-            Revenue: ${usd_format.format(asset.pairs.USD.revenue)}<br>
-            <br>
-            Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
-            <small class="text-muted">${usd_format.format(asset.pairs.USD.revenue)}+${usd_format.format(asset.balance * price)}-${usd_format.format(asset.pairs.USD.cost)}</small><br>
-            First traded: ${new Date(asset.pairs.USD.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
-            Last traded: ${new Date(asset.pairs.USD.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}
-        `)
-    });
-});
+    let usd_format = new Intl.NumberFormat(`en-US`, {
+        currency: `USD`,
+        style: 'currency',
+    })
+    $("#exampleModal").modal("show");
+    $("#modal-header").html(data[0].display)
+    $("#modal-body").html(`
+        <p>
+        Average Buy: ${usd_format.format(buy)}<br>
+        Average Sell: ${(isNaN(sell)) ? "Unsold" : usd_format.format(sell)}<br>
+        Price: ${price} <label class="${change_color}">(${change.toFixed(2)})</label><br>
+        Current - Buy: <label class="${dif_color}">${usd_format.format(dif)}</label><br>
+        <br>
+        Balance: ${asset.balance} (${usd_format.format(asset.balance * price)})<br>
+        <small class="text-muted">May be inaccurate</small><br>
+        Cost: ${usd_format.format(asset.pairs.USD.cost)}<br>
+        Revenue: ${usd_format.format(asset.pairs.USD.revenue)}<br>
+        <br>
+        Profit: <label class="${profit_color}">${usd_format.format(profit)}</label><br>
+        <small class="text-muted">${usd_format.format(asset.pairs.USD.revenue)}+${usd_format.format(asset.balance * price)}-${usd_format.format(asset.pairs.USD.cost)}</small><br>
+        First traded: ${new Date(asset.pairs.USD.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
+        Last traded: ${new Date(asset.pairs.USD.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}
+    `)
+}

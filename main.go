@@ -276,6 +276,7 @@ func update(ctx context.Context, b binance.Binance, payload Payload, path string
 	}
 	bals := payload.Assets
 	var total int = 0
+	// TODO: prioritize balances that have changed and are > 0
 	for k, existing := range bals {
 		new := existing
 		for _, p := range pairs.Data {
