@@ -5,7 +5,7 @@ $(document).ready(function ($) {
     var urlParams = new URLSearchParams(window.location.search)
     if (urlParams.has('key')) {
         document.getElementById("key").value = urlParams.get('key')
-        refresh()
+        refresh(urlParams.get('key'))
     }
     $.fn.dataTable.ext.search.push(
         function( settings, data, dataIndex ) {                
@@ -33,32 +33,65 @@ $(document).ready(function ($) {
     });
 });
 
-async function refresh() {
+async function refresh(key) {
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
     let status = document.getElementById("status")
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
-    document.getElementById("balances").innerHTML = ""
+    
     let balanceRequest = await
         fetch('/latest', {
             method: 'GET',
             headers: {
-                'X-API-Key': document.getElementById("key").value,
+                'X-API-Key': key,
                 'Accept': 'application/json',
                 'pragma': 'no-cache',
                 'cache-control': 'no-cache'
             }
         })
     if (balanceRequest.status == 404) {
+        document.getElementById("balances").innerHTML = ""
         btn.disabled = false
         status.className = "text-warning"
         status.innerHTML = "No trades found. Try providing your secret key and updating."
+        generateDownloadable({})
         return
     }
     const balanceResponse = await balanceRequest.json();
+    
+    binance = balanceResponse.binance;
+    if (binance == undefined) {
+        btn.disabled = false
+        document.getElementById("balances").innerHTML = ""
+        status.className = "text-danger"
+        status.innerHTML = "Something went wrong. Try providing your secret key and updating."
+        generateDownloadable({})
+        return
+    }
+
+    window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
+    if (Object.keys(binance).length < 1) {
+        btn.disabled = false
+        document.getElementById("balances").innerHTML = ""
+        status.className = "text-warning"
+        status.innerHTML = "No trades found. Try providing your secret key and updating."
+        generateDownloadable({})
+        return
+    }
+    binance = await prepData(balanceResponse.binance)
     btn.disabled = false
-    populateTable(balanceResponse, status)
+    populateTable(binance)
+    status.className = "text-light"
+    status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
+}
+
+function generateDownloadable(balance) {
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(balance, null, 2));
+    let dlAnchorElem = document.getElementById('my-data');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", "data.json");
+    dlAnchorElem.innerHTML = "My data"
 }
 
 async function matchCoins(binance, coingeckolist) {
@@ -159,25 +192,15 @@ function usdOnly(binance, coins) {
     return cleaned
 }
 
-async function populateTable(balance, status) {
-    binance = balance.binance;
-    if (binance == undefined) {
-        status.className = "text-danger"
-        status.innerHTML = "Something went wrong. Try providing your secret key and updating."
-        return
-    }
-
-    window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
-    if (Object.keys(binance).length < 1) {
-        status.className = "text-warning"
-        status.innerHTML = "No trades found. Try providing your secret key and updating."
-        return
-    }
+async function prepData(data) {
     let coingeckoRequest = await fetch('https://api.coingecko.com/api/v3/coins/list')
     const coingecko = await coingeckoRequest.json();
-    let coins = await matchCoins(balance.binance, coingecko)
-    binance = usdOnly(binance, coins)
+    let coins = await matchCoins(data, coingecko)
+    return usdOnly(data, coins)
+}
 
+function populateTable(binance) {
+    
     if ($.fn.dataTable.isDataTable('#main')) {
         $('#main').DataTable().destroy()
     }
@@ -201,7 +224,7 @@ async function populateTable(balance, status) {
             </tr>`
             continue
         }
-        let coin = coins[key.toLowerCase()]
+        let coin = val.coin
         var change = undefined
         var change_color = ""
         if (!isNaN(coin.usd_24h_change)) {
@@ -241,16 +264,7 @@ async function populateTable(balance, status) {
     })
     
 
-    // generate downloadable
-    var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(balance, null, 2));
-    var dlAnchorElem = document.getElementById('my-data');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", "data.json");
-    dlAnchorElem.innerHTML = "My data"
-
-    status.className = "text-light"
-    status.innerHTML = "Last updated: " + new Date(balance.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
-
+    
 }
 
 async function update() {
@@ -273,7 +287,7 @@ async function update() {
         status.className = "text-danger"
         status.innerHTML = result.error
     } else {
-        refresh()
+        refresh(document.getElementById("key").value)
         status.className = "text-light"
         status.innerHTML = "This will take a while. Check back later."
     }
