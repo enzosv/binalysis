@@ -132,7 +132,8 @@ function usdOnly(binance, coins) {
                 let coin = coins[kk.toLowerCase()]
                 vv.cost *= coin.usd
                 vv.revenue *= coin.usd
-                // TODO: multiply if symbol of earliest and latest trade is not stablecoin
+                vv.earliest_trade.Price *= coin.usd
+                vv.latest_trade.Price *= coin.usd
             }
             delete val.pairs[kk]
             if (merged == undefined) {
