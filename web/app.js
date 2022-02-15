@@ -39,6 +39,18 @@ async function refresh(key) {
     let status = document.getElementById("status")
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
+
+    var refreshCacheControl = "default"
+    if (binance != undefined){
+        for ([symbol, asset] of Object.entries(binance)) {
+            for([kk, vv] of Object.entries(asset.pairs)) {
+                if(asset.pair == undefined){
+                    refreshCacheControl = "no-store"
+                    break
+                }
+            }
+        }
+    }
     
     let balanceRequest = await
         fetch('/latest', {
@@ -46,8 +58,8 @@ async function refresh(key) {
             headers: {
                 'X-API-Key': key,
                 'Accept': 'application/json',
-                'pragma': 'no-store',
-                'cache-control': 'no-store'
+                'pragma': refreshCacheControl,
+                'cache-control': refreshCacheControl
             }
         })
     if (balanceRequest.status == 404) {
