@@ -2,10 +2,18 @@ var binance;
 
 $(document).ready(function ($) {
 
+    
+
     var urlParams = new URLSearchParams(window.location.search)
     if (urlParams.has('key')) {
         document.getElementById("key").value = urlParams.get('key')
-        refresh(urlParams.get('key'))
+        let key = urlParams.get('key')
+        const go = new Go();
+        // WebAssembly.instantiateStreaming(fetch("web.wasm"), go.importObject).then((result) => {
+        //     go.run(result.instance);
+        //     refresh(key)
+        // });
+        
     }
     $.fn.dataTable.ext.search.push(
         function( settings, data, dataIndex ) {                
@@ -34,6 +42,14 @@ $(document).ready(function ($) {
 });
 
 async function refresh(key) {
+    // try {
+    //     let request = gorefresh(key, window.location.origin+"/latest")
+    //     let response = await request
+    //     console.log(response)
+    // } catch(err){
+    //     console.error(err)
+    // }
+    // return
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
     let status = document.getElementById("status")
