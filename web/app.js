@@ -108,14 +108,14 @@ function populateTable(binance) {
         let dif_color = (val.dif > 0) ? "text-success" : "text-danger"
         tbody.innerHTML += `<tr>
             <td data-search="${key}"><a href="https://www.coingecko.com/en/coins/${val.coin.id}">${key}</a></td>
-            <td data-search="${val.balance*val.coin.usd}">${(isNaN(val.average_buy)) ? "" : usd_format.format(val.average_buy)}</td>
-            <td>${(isNaN(val.average_sell)) ? "" : usd_format.format(val.average_sell)}</td>
+            <td data-search="${val.balance*val.coin.usd}">${(val.buy_qty <= 0) ? "" : usd_format.format(val.average_buy)}</td>
+            <td>${(val.sell_qty <= 0) ? "" : usd_format.format(val.average_sell)}</td>
             <td data-order="${change ?? 0}">
-                ${(isNaN(val.coin.usd)) ? "" : usd_format.format(val.coin.usd)}
-                <small class='${change_color}'>${isNaN(change) ? "" : "(" + change.toFixed(2) + "%)"}</small>
+                ${(val.coin.usd<=0) ? "" : usd_format.format(val.coin.usd)}
+                <small class='${change_color}'>${(change <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>
             </td>
-            <td data-order="${val.percent_dif}" class=${dif_color}>${(isNaN(val.dif)) ? "" : usd_format.format(val.dif)} 
-            <small>${isNaN(val.dif) ? "" : "(" + val.percent_dif.toFixed(2) + "%)"}</small>
+            <td data-order="${val.percent_dif}" class=${dif_color}>${(val.buy_qty <= 0 || val.coin.usd <= 0) ? "" : usd_format.format(val.dif)} 
+            <small>${(val.dif == 0 ) ? "" : "(" + val.percent_dif.toFixed(2) + "%)"}</small>
             </td>
         </tr>`
     }
@@ -125,9 +125,6 @@ function populateTable(binance) {
         ordering: true,
         order: [[3, "desc"]]
     })
-    
-
-    
 }
 
 async function update() {
@@ -202,8 +199,8 @@ function presentModal(row) {
     $("#modal-header").html(data[0].display)
     $("#modal-body").html(`
         <p>
-        Average Buy: ${usd_format.format(asset.average_buy)}<br>
-        Average Sell: ${(isNaN(asset.average_sell)) ? "Unsold" : usd_format.format(asset.average_sell)}<br>
+        Average Buy: ${(asset.buy_qty<=0) ? "Unbought" :usd_format.format(asset.average_buy)}<br>
+        Average Sell: ${(asset.sell_qty<=0) ? "Unsold" : usd_format.format(asset.average_sell)}<br>
         Price: ${asset.coin.usd} <label class="${change_color}">(${asset.coin.usd_24h_change.toFixed(2)})</label><br>
         Current - Buy: <label class="${dif_color}">${usd_format.format(asset.dif)} <small>(${asset.percent_dif.toFixed(2)}%)</label><br>
         <br>
