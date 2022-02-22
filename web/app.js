@@ -1,4 +1,4 @@
-var binance;
+var balanceResponse = {"is_refreshing": true};
 const go = new Go();
 WebAssembly.instantiateStreaming(fetch("web.wasm"), go.importObject).then((result) => {
     go.run(result.instance);
@@ -38,31 +38,17 @@ WebAssembly.instantiateStreaming(fetch("web.wasm"), go.importObject).then((resul
 });
 
 async function refresh(key) {
-    
-
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
     let status = document.getElementById("status")
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
-
-    var refreshCacheControl = "default"
-    if (binance != undefined){
-        for ([symbol, asset] of Object.entries(binance)) {
-            for([kk, vv] of Object.entries(asset.pairs)) {
-                if(asset.pair == undefined){
-                    refreshCacheControl = "no-store"
-                    break
-                }
-            }
-        }
-    }
-    var balanceResponse
     try {
-        let request = gorefresh(key, window.location.origin+"/latest")
+        let request = gorefresh(key, window.location.origin+"/latest", balanceResponse.is_refreshing)
         balanceResponse = await request
         
     } catch(err){
+        balanceResponse = null
         console.error(err)
         document.getElementById("balances").innerHTML = ""
         btn.disabled = false
@@ -70,14 +56,12 @@ async function refresh(key) {
         status.innerHTML = "No trades found. Try providing your secret key and updating."
         generateDownloadable({})
     }
-    binance = balanceResponse.binance
-    
     window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
-    populateTable(binance)
+    populateTable(balanceResponse.binance)
     generateDownloadable(balanceResponse)
     status.className = "text-light"
     status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
-    //refresh again if successful
+    btn.disabled = false
     setTimeout(function(){ refresh(key); }, 120000);
 }
 
@@ -183,7 +167,7 @@ function presentModal(row) {
     var table = $('#main').DataTable()
     var data = table.row(row).data();
     let key = data[0]["@data-search"]
-    let asset = binance[key]
+    let asset = balanceResponse.binance[key]
     console.log(asset)
     let profit_color = (asset.profit > 0) ? "text-success" : "text-danger"
     let change_color = (asset.coin.usd_24h_change > 0) ? "text-success" : "text-danger"

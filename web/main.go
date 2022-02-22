@@ -34,6 +34,21 @@ type Coin struct {
 	MarketCap float64 `json:"usd_market_cap"`
 	Change    float64 `json:"usd_24h_change"`
 }
+type Clean struct {
+	Coin          Coin    `json:"coin"`
+	AverageBuy    float64 `json:"average_buy"`
+	AverageSell   float64 `json:"average_sell"`
+	Cost          float64 `json:"cost"`
+	Revenue       float64 `json:"revenue"`
+	BuyQty        float64 `json:"buy_qty"`
+	SellQty       float64 `json:"sell_qty"`
+	EarliestTrade Trade   `json:"earliest_trade"`
+	LatestTrade   Trade   `json:"latest_trade"`
+	Balance       float64 `json:"balance"`
+	Profit        float64 `json:"profit"`
+	Dif           float64 `json:"dif"`
+	PercentDif    float64 `json:"percent_dif"`
+}
 
 // from binance-go
 type Trade struct {
@@ -57,14 +72,15 @@ func refreshWrapper() js.Func {
 	return js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		key := args[0].String()
 		url := args[1].String()
+		isRefershing := args[2].Bool()
 		handler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			if len(args) != 2 {
 				return "key and url are required"
 			}
 			resolve := args[0]
 			reject := args[1]
-			go func(key, url string) {
-				cleaned, err := refresh(key, url)
+			go func(key, url string, isRefershing bool) {
+				cleaned, err := refresh(key, url, isRefershing)
 				if err != nil {
 					reject.Invoke(err.Error())
 					return
@@ -83,7 +99,7 @@ func refreshWrapper() js.Func {
 					reject.Invoke(err.Error())
 				}
 				resolve.Invoke(output)
-			}(key, url)
+			}(key, url, isRefershing)
 
 			return nil
 		})
@@ -92,13 +108,13 @@ func refreshWrapper() js.Func {
 	})
 }
 
-func refresh(key, url string) (map[string]interface{}, error) {
+func refresh(key, url string, isRefershing bool) (map[string]interface{}, error) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	payloadChan := make(chan Payload)
 	coinlistChan := make(chan []Coin)
 	errorChan := make(chan error)
 	go func(ch chan Payload, ech chan error) {
-		payload, err := fetchLatest(client, key, url)
+		payload, err := fetchLatest(client, key, url, isRefershing)
 		if err != nil {
 			ech <- err
 			return
@@ -135,17 +151,29 @@ func refresh(key, url string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	cleaned := usdOnly(payload, coins)
-	return map[string]interface{}{"binance": cleaned, "last_update": payload.LastUpdate}, nil
+	isRefreshing := false
+	for _, p := range payload.Binance {
+		if len(p.Pairs) == 0 {
+			isRefreshing = true
+			break
+		}
+	}
+	return map[string]interface{}{"binance": cleaned, "last_update": payload.LastUpdate, "is_refreshing": isRefreshing}, nil
 }
 
-func fetchLatest(client *http.Client, key, url string) (Payload, error) {
+func fetchLatest(client *http.Client, key, url string, isRefershing bool) (Payload, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return Payload{}, err
 	}
-
+	cacheControl := "max-age=3600"
+	if isRefershing {
+		cacheControl = "max-age=60"
+	}
 	req.Header.Add("X-API-Key", key)
 	req.Header.Add("Accept", "application/json")
+	req.Header.Add("cache-control", cacheControl)
+	req.Header.Add("pragma", cacheControl)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -169,6 +197,8 @@ func fetchCoinList(client *http.Client) ([]Coin, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("cache-control", "max-age=86400")
+	req.Header.Add("pragma", "max-age=86400")
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -267,22 +297,6 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 	return coins, nil
 }
 
-type Clean struct {
-	Coin          Coin    `json:"coin"`
-	AverageBuy    float64 `json:"average_buy"`
-	AverageSell   float64 `json:"average_sell"`
-	Cost          float64 `json:"cost"`
-	Revenue       float64 `json:"revenue"`
-	BuyQty        float64 `json:"buy_qty"`
-	SellQty       float64 `json:"sell_qty"`
-	EarliestTrade Trade   `json:"earliest_trade"`
-	LatestTrade   Trade   `json:"latest_trade"`
-	Balance       float64 `json:"balance"`
-	Profit        float64 `json:"profit"`
-	Dif           float64 `json:"dif"`
-	PercentDif    float64 `json:"percent_dif"`
-}
-
 func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
 	stablecoins := map[string]bool{
 		"usdt": true,
@@ -342,11 +356,12 @@ func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
 
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
 
-		_, err := json.MarshalIndent(clean, "", "  ")
-		if err != nil {
-			fmt.Println(k, clean, err)
-			continue
-		}
+		// remove NaNs
+		// _, err := json.Marshal(clean)
+		// if err != nil {
+		// 	fmt.Println(k, clean, err)
+		// 	continue
+		// }
 		cleaned[k] = clean
 	}
 	return cleaned
