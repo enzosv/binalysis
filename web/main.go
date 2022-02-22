@@ -64,10 +64,23 @@ func refreshWrapper() js.Func {
 			resolve := args[0]
 			reject := args[1]
 			go func(key, url string) {
-				output, err := refresh(key, url)
+				cleaned, err := refresh(key, url)
 				if err != nil {
 					reject.Invoke(err.Error())
 					return
+				}
+
+				// convert incompatible values
+				data, err := json.Marshal(cleaned)
+				if err != nil {
+					fmt.Println(err)
+					reject.Invoke(err.Error())
+				}
+				var output map[string]interface{}
+				err = json.Unmarshal(data, &output)
+				if err != nil {
+					fmt.Println(err)
+					reject.Invoke(err.Error())
 				}
 				resolve.Invoke(output)
 			}(key, url)
@@ -79,7 +92,7 @@ func refreshWrapper() js.Func {
 	})
 }
 
-func refresh(key, url string) (string, error) {
+func refresh(key, url string) (map[string]interface{}, error) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	payloadChan := make(chan Payload)
 	coinlistChan := make(chan []Coin)
@@ -105,29 +118,24 @@ func refresh(key, url string) (string, error) {
 	var coinlist []Coin
 	select {
 	case err := <-errorChan:
-		return "", err
+		return nil, err
 	case p := <-payloadChan:
 		payload = p
 	}
 
 	select {
 	case err := <-errorChan:
-		return "", err
+		return nil, err
 	case cl := <-coinlistChan:
 		coinlist = cl
 	}
 	coins, err := matchCoins(client, payload, coinlist)
 	if err != nil {
 		fmt.Println(err)
-		return "", err
+		return nil, err
 	}
 	cleaned := usdOnly(payload, coins)
-	output, err := json.MarshalIndent(cleaned, "", "  ")
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-	return string(output), nil
+	return map[string]interface{}{"binance": cleaned, "last_update": payload.LastUpdate}, nil
 }
 
 func fetchLatest(client *http.Client, key, url string) (Payload, error) {
@@ -260,19 +268,19 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 }
 
 type Clean struct {
-	Coin          Coin `json:"coin"`
-	AverageBuy    float64
-	AverageSell   float64
-	Cost          float64
-	Revenue       float64
-	BuyQty        float64
-	SellQty       float64
-	EarliestTrade Trade
-	LatestTrade   Trade
-	Balance       float64
-	Profit        float64
-	Dif           float64
-	PercentDif    float64
+	Coin          Coin    `json:"coin"`
+	AverageBuy    float64 `json:"average_buy"`
+	AverageSell   float64 `json:"average_sell"`
+	Cost          float64 `json:"cost"`
+	Revenue       float64 `json:"revenue"`
+	BuyQty        float64 `json:"buy_qty"`
+	SellQty       float64 `json:"sell_qty"`
+	EarliestTrade Trade   `json:"earliest_trade"`
+	LatestTrade   Trade   `json:"latest_trade"`
+	Balance       float64 `json:"balance"`
+	Profit        float64 `json:"profit"`
+	Dif           float64 `json:"dif"`
+	PercentDif    float64 `json:"percent_dif"`
 }
 
 func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
