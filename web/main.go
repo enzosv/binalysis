@@ -80,31 +80,41 @@ func refreshWrapper() js.Func {
 }
 
 func refresh(key, url string) (string, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
+	client := &http.Client{Timeout: 3 * time.Second}
+	payloadChan := make(chan Payload)
+	coinlistChan := make(chan []Coin)
+	errorChan := make(chan error)
+	go func(ch chan Payload, ech chan error) {
+		payload, err := fetchLatest(client, key, url)
+		if err != nil {
+			ech <- err
+			return
+		}
+		ch <- payload
+	}(payloadChan, errorChan)
+	go func(ch chan []Coin, ech chan error) {
+		coinlist, err := fetchCoinList(client)
+		if err != nil {
+			ech <- err
+			return
+		}
+		ch <- coinlist
+	}(coinlistChan, errorChan)
+
+	var payload Payload
+	var coinlist []Coin
+	select {
+	case err := <-errorChan:
 		return "", err
+	case p := <-payloadChan:
+		payload = p
 	}
 
-	req.Header.Add("X-API-Key", key)
-	req.Header.Add("Accept", "application/json")
-	client := &http.Client{Timeout: 3 * time.Second}
-	res, err := client.Do(req)
-	if err != nil {
+	select {
+	case err := <-errorChan:
 		return "", err
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-	var payload Payload
-	err = json.Unmarshal(body, &payload)
-	if err != nil {
-		return "", err
-	}
-	coinlist, err := fetchCoinList(client)
-	if err != nil {
-		return "", err
+	case cl := <-coinlistChan:
+		coinlist = cl
 	}
 	coins, err := matchCoins(client, payload, coinlist)
 	if err != nil {
@@ -118,6 +128,32 @@ func refresh(key, url string) (string, error) {
 		return "", err
 	}
 	return string(output), nil
+}
+
+func fetchLatest(client *http.Client, key, url string) (Payload, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return Payload{}, err
+	}
+
+	req.Header.Add("X-API-Key", key)
+	req.Header.Add("Accept", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return Payload{}, err
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return Payload{}, err
+	}
+	defer res.Body.Close()
+	var payload Payload
+	err = json.Unmarshal(body, &payload)
+	if err != nil {
+		return Payload{}, err
+	}
+	return payload, nil
 }
 
 func fetchCoinList(client *http.Client) ([]Coin, error) {
