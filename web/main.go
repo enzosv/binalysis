@@ -58,7 +58,6 @@ func refreshWrapper() js.Func {
 		key := args[0].String()
 		url := args[1].String()
 		handler := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			fmt.Println("happen")
 			if len(args) != 2 {
 				return "key and url are required"
 			}
@@ -89,7 +88,6 @@ func refresh(key, url string) (string, error) {
 	req.Header.Add("X-API-Key", key)
 	req.Header.Add("Accept", "application/json")
 	client := &http.Client{Timeout: 3 * time.Second}
-	fmt.Println(req.Header)
 	res, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -162,7 +160,7 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 			// TODO: handle IOTA in binance vs miota in coingecko
 			if s == token {
 				coinids = append(coinids, coin.ID)
-				coins[token] = coin
+				coins[token] = Coin{}
 				continue
 			}
 			for k := range asset.Pairs {
@@ -170,13 +168,14 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 					continue
 				}
 				coinids = append(coinids, coin.ID)
-				coins[token] = coin
+				coins[token] = Coin{}
 			}
 		}
 	}
+
 	req, err := http.NewRequest("GET", "https://api.coingecko.com/api/v3/simple/price", nil)
 	if err != nil {
-		return coins, err
+		return nil, err
 	}
 	q := req.URL.Query()
 	q.Add("ids", strings.Join(coinids, ","))
@@ -184,28 +183,41 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 	q.Add("include_24hr_change", "true")
 	q.Add("include_market_cap", "true")
 	req.URL.RawQuery = q.Encode()
+	fmt.Println(req.URL)
 	res, err := client.Do(req)
 	if err != nil {
-		return coins, err
+		return nil, err
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return coins, err
+		return nil, err
 	}
 	defer res.Body.Close()
 	var data map[string]map[string]float64
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		return coins, err
+		return nil, err
 	}
+
 	for k, v := range data {
 		marketCap := v["usd_market_cap"]
-		if coins[k].MarketCap < marketCap {
-			new := coins[k]
+		for _, coin := range coinlist {
+			if coin.ID != k {
+				continue
+			}
+			symbol := strings.ToLower(coin.Symbol)
+			new := coins[symbol]
+			if new.MarketCap >= marketCap {
+				break
+			}
+			new.ID = k
+			new.Name = coin.Name
+			new.Symbol = coin.Symbol
 			new.MarketCap = marketCap
 			new.Change = v["usd_24h_change"]
 			new.USD = v["usd"]
-			coins[k] = new
+			coins[symbol] = new
+			break
 		}
 	}
 	return coins, nil
@@ -251,7 +263,9 @@ func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
 			new := vv
 			symbol := strings.ToLower(kk)
 			if _, ok := stablecoins[symbol]; !ok {
+
 				coin := coins[symbol]
+				fmt.Println(symbol, coin)
 				new.Cost *= coin.USD
 				new.Revenue *= coin.USD
 				new.EarliestTrade.Price *= coin.USD
@@ -270,15 +284,23 @@ func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
 			}
 		}
 
-		clean.AverageBuy = clean.Cost / clean.BuyQty
-		clean.AverageSell = clean.Revenue / clean.SellQty
+		if clean.BuyQty != 0 {
+			clean.AverageBuy = clean.Cost / clean.BuyQty
+			clean.Dif = clean.Coin.USD - clean.AverageBuy
+			divisor := (clean.Coin.USD + clean.AverageBuy) / 2
+			if divisor != 0 {
+				clean.PercentDif = clean.Dif * 100 / divisor
+			}
+		}
+		if clean.SellQty != 0 {
+			clean.AverageSell = clean.Revenue / clean.SellQty
+		}
+
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
-		clean.Dif = clean.Coin.USD - clean.AverageBuy
-		clean.PercentDif = clean.Dif * 100 / (clean.Coin.USD + clean.AverageBuy) / 2
 
 		_, err := json.MarshalIndent(clean, "", "  ")
 		if err != nil {
-			// fmt.Println(k, clean, err)
+			fmt.Println(k, clean, err)
 			continue
 		}
 		cleaned[k] = clean
