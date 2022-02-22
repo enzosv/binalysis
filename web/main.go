@@ -321,9 +321,13 @@ func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
 			new := vv
 			symbol := strings.ToLower(kk)
 			if _, ok := stablecoins[symbol]; !ok {
-
 				coin := coins[symbol]
-				fmt.Println(symbol, coin)
+				if clean.Coin.USD == 0 {
+					clean.Coin = coin
+					clean.Balance *= coin.USD
+					fmt.Println(symbol, coin)
+				}
+
 				new.Cost *= coin.USD
 				new.Revenue *= coin.USD
 				new.EarliestTrade.Price *= coin.USD
