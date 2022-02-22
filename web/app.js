@@ -96,7 +96,7 @@ function populateTable(binance) {
             <td>${(val.sell_qty <= 0) ? "" : usd_format.format(val.average_sell)}</td>
             <td data-order="${change ?? 0}">
                 ${(val.coin.usd<=0) ? "" : usd_format.format(val.coin.usd)}
-                <small class='${change_color}'>${(change <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>
+                <small class='${change_color}'>${(val.coin.usd <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>
             </td>
             <td data-order="${val.percent_dif}" class=${dif_color}>${(val.buy_qty <= 0 || val.coin.usd <= 0) ? "" : usd_format.format(val.dif)} 
             <small>${(val.dif == 0 ) ? "" : "(" + val.percent_dif.toFixed(2) + "%)"}</small>
