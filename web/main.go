@@ -35,6 +35,7 @@ type Coin struct {
 	Change    float64 `json:"usd_24h_change"`
 }
 type Clean struct {
+	Symbol        string  `json:"symbol"`
 	Coin          Coin    `json:"coin"`
 	AverageBuy    float64 `json:"average_buy"`
 	AverageSell   float64 `json:"average_sell"`
@@ -64,6 +65,7 @@ type Trade struct {
 }
 
 func main() {
+	fmt.Println("started wasm")
 	js.Global().Set("gorefresh", refreshWrapper())
 	select {}
 }
@@ -297,14 +299,14 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 	return coins, nil
 }
 
-func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
+func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 	stablecoins := map[string]bool{
 		"usdt": true,
 		"busd": true,
 		"usdc": true,
 		"tusd": true,
 	}
-	cleaned := map[string]Clean{}
+	var cleaned []Clean
 	for k, v := range payload.Binance {
 		if len(v.Pairs) < 1 {
 			continue
@@ -366,7 +368,7 @@ func usdOnly(payload Payload, coins map[string]Coin) map[string]Clean {
 		// 	fmt.Println(k, clean, err)
 		// 	continue
 		// }
-		cleaned[k] = clean
+		cleaned = append(cleaned, clean)
 	}
 	return cleaned
 }
