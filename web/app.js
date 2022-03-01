@@ -74,6 +74,65 @@ function generateDownloadable(balance) {
 }
 
 function populateTable(binance) {
+    console.log(binance)
+    const usd_format = new Intl.NumberFormat(`en-US`, {
+        currency: `USD`,
+        style: 'currency',
+    })
+    table = $("#main").DataTable({
+        data: binance,
+        paging: false,
+        ordering: true,
+        order: [[3, "desc"]],
+        columns: [
+            {
+                data: "coin.symbol",
+                render: function (data, type, row) {
+                    return `<a href="https://www.coingecko.com/en/coins/${row.coin.id}">${data.toUpperCase()}</a>`
+                }
+            },
+            {
+                data: "average_buy",
+                render: function(data, type, row) {
+                    var output = ""
+                    try {
+                        output = usd_format.format(data)
+                        console.log(output)
+                    } catch (error) {
+                        console.error(error)
+                    }
+                    return (row.buy_qty <= 0) ? "" :  data.toFixed(2)
+                }
+            },
+            {
+                data: "average_sell",
+                render: function(data, type, row) {
+                    return (row.sell_qty <= 0) ? "" : usd_format.format(data)
+                }
+            },
+            {
+                data: "coin.usd",
+                render: function(data, type, row) {
+                    let change = row.coin.usd_24h_change
+                    let change_color = (change > 0) ? "text-success" : "text-danger"
+                    return `${(data<=0) ? "" : usd_format.format(data)}
+                    <small class='${change_color}'>${(data <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>`
+                }
+            },
+            {
+                data: "dif",
+                render: function(data, type, row) {
+                    let dif_color = (data > 0) ? "text-success" : "text-danger"
+                    return `<div class=${dif_color}>
+                    ${(row.buy_qty <= 0 || row.coin.usd <= 0) ? "" : usd_format.format(data)} 
+                    <small>${(data == 0 ) ? "" : "(" + row.percent_dif.toFixed(2) + "%)"}</small>
+                    </div>`
+                }
+            }
+        ]
+    })
+    return
+    console.log(binance)
     
     if ($.fn.dataTable.isDataTable('#main')) {
         $('#main').DataTable().destroy()
@@ -82,10 +141,10 @@ function populateTable(binance) {
     let tbody = document.getElementById("balances")
     tbody.innerHTML = ""
 
-    let usd_format = new Intl.NumberFormat(`en-US`, {
-        currency: `USD`,
-        style: 'currency',
-    })
+    // let usd_format = new Intl.NumberFormat(`en-US`, {
+    //     currency: `USD`,
+    //     style: 'currency',
+    // })
     for ([key, val] of Object.entries(binance)) {
         let change = val.coin.usd_24h_change
         let change_color = (change > 0) ? "text-success" : "text-danger"
