@@ -97,12 +97,13 @@ function populateTable(binance) {
                     var output = ""
                     try {
                         output = usd_format.format(data)
-                        console.log(output)
+                        // console.log(output)
                     } catch (error) {
                         console.error(error)
                     }
                     return (row.buy_qty <= 0) ? "" :  data.toFixed(2)
-                }
+                },
+                defaultContent: ""
             },
             {
                 data: "average_sell",
@@ -111,13 +112,22 @@ function populateTable(binance) {
                 }
             },
             {
-                data: "coin.usd",
+                data: "coin.usd_24h_change",
                 render: function(data, type, row) {
-                    let change = row.coin.usd_24h_change
-                    let change_color = (change > 0) ? "text-success" : "text-danger"
-                    return `${(data<=0) ? "" : usd_format.format(data)}
-                    <small class='${change_color}'>${(data <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>`
-                }
+                    if(type==='display'||type==='filter'){
+                        let change = row.coin.usd_24h_change
+                        let change_color = (change > 0) ? "text-success" : "text-danger"
+                        return `${(row.coin.usd<=0) ? "" : usd_format.format(row.coin.usd)}
+                        <small class='${change_color}'>${(row.coin.usd <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>`
+                    }
+                    if(type==='sort'){
+                        return row.coin.usd_24h_change
+                    }
+                    // console.log(data)
+                    // console.log(type)
+                    
+                },
+                defaultContent: ""
             },
             {
                 data: "dif",
