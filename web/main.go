@@ -315,6 +315,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 			continue
 		}
 		clean := Clean{}
+		clean.Symbol = k
 		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
 		clean.LatestTrade.Time = time.Unix(0, 0)
 		clean.Coin = coins[strings.ToLower(k)]
@@ -361,13 +362,6 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		}
 
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
-
-		// remove NaNs
-		// _, err := json.Marshal(clean)
-		// if err != nil {
-		// 	fmt.Println(k, clean, err)
-		// 	continue
-		// }
 		cleaned = append(cleaned, clean)
 	}
 	return cleaned
