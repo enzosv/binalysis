@@ -77,7 +77,7 @@ function populateTable(binance) {
     if ($.fn.dataTable.isDataTable('#main')) {
         let table = $('#main').DataTable()
         table.clear();
-        table.rows.add(newDataArray);
+        table.rows.add(binance);
         table.draw();
         return
     }
@@ -92,7 +92,7 @@ function populateTable(binance) {
         order: [[3, "desc"]],
         columns: [
             {
-                data: "coin.symbol",
+                data: "symbol",
                 render: function (data, type, row) {
                     return `<a href="https://www.coingecko.com/en/coins/${row.coin.id}">${data.toUpperCase()}</a>`
                 }
