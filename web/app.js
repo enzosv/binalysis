@@ -1,9 +1,41 @@
-var balanceResponse = {"is_refreshing": true};
+var balanceResponse = { "is_refreshing": true };
+const wasmBrowserInstantiate = async (wasmModuleUrl, importObject) => {
+    let response = undefined;
+
+    if (WebAssembly.instantiateStreaming) {
+        response = await WebAssembly.instantiateStreaming(
+            fetch(wasmModuleUrl),
+            importObject
+        );
+    } else {
+        const fetchAndInstantiateTask = async () => {
+            const wasmArrayBuffer = await fetch(wasmModuleUrl).then(response =>
+                response.arrayBuffer()
+            );
+            return WebAssembly.instantiate(wasmArrayBuffer, importObject);
+        };
+
+        response = await fetchAndInstantiateTask();
+    }
+
+    return response;
+};
+
 const go = new Go();
-WebAssembly.instantiateStreaming(fetch("web.wasm"), go.importObject).then((result) => {
-    go.run(result.instance);
+
+const runWasmAdd = async () => {
+    const importObject = go.importObject;
+
+    const wasmModule = await wasmBrowserInstantiate("./web.wasm", importObject);
+
+    go.run(wasmModule.instance);
+    setup()
+};
+runWasmAdd();
+
+function setup() {
     $(document).ready(function ($) {
-        
+
         var urlParams = new URLSearchParams(window.location.search)
         if (urlParams.has('key')) {
             document.getElementById("key").value = urlParams.get('key')
@@ -11,12 +43,12 @@ WebAssembly.instantiateStreaming(fetch("web.wasm"), go.importObject).then((resul
             refresh(key)
         }
         $.fn.dataTable.ext.search.push(
-            function( settings, data, dataIndex ) {                
+            function (settings, data, dataIndex) {
                 let min = (document.getElementById('hide-small').checked) ? 10 : 0
                 return data[1] >= min
             }
         )
-        
+
         $('#search').on('keyup', function () {
             if (!$.fn.dataTable.isDataTable('#main')) {
                 return
@@ -35,7 +67,7 @@ WebAssembly.instantiateStreaming(fetch("web.wasm"), go.importObject).then((resul
             presentModal(this)
         });
     });
-});
+}
 
 async function refresh(key) {
     let btn = document.getElementById("refresh-btn")
@@ -44,10 +76,10 @@ async function refresh(key) {
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
     try {
-        let request = gorefresh(key, window.location.origin+"/latest", balanceResponse.is_refreshing)
+        let request = gorefresh(key, window.location.origin + "/latest", balanceResponse.is_refreshing)
         balanceResponse = await request
-        
-    } catch(err){
+
+    } catch (err) {
         balanceResponse = null
         console.error(err)
         document.getElementById("balances").innerHTML = ""
@@ -62,7 +94,7 @@ async function refresh(key) {
     status.className = "text-light"
     status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
     btn.disabled = false
-    setTimeout(function(){ refresh(key); }, 120000);
+    setTimeout(function () { refresh(key); }, 120000);
 }
 
 function generateDownloadable(balance) {
@@ -99,9 +131,9 @@ function populateTable(binance) {
             },
             {
                 data: "average_buy",
-                render: function(data, type, row) {
-                    if(type==='display'){
-                        return (row.buy_qty <= 0) ? "" :  usd_format.format(data)
+                render: function (data, type, row) {
+                    if (type === 'display') {
+                        return (row.buy_qty <= 0) ? "" : usd_format.format(data)
                     }
                     return data
                 },
@@ -109,35 +141,35 @@ function populateTable(binance) {
             },
             {
                 data: "average_sell",
-                render: function(data, type, row) {
-                    if(type==='display'){
-                        return (row.sell_qty <= 0) ? "" :  usd_format.format(data)
+                render: function (data, type, row) {
+                    if (type === 'display') {
+                        return (row.sell_qty <= 0) ? "" : usd_format.format(data)
                     }
                     return data
                 }
             },
             {
                 data: "coin.usd_24h_change",
-                render: function(data, type, row) {
-                    if(type==='display'){
+                render: function (data, type, row) {
+                    if (type === 'display') {
                         let change = data
                         let change_color = (change > 0) ? "text-success" : "text-danger"
-                        return `${(row.coin.usd<=0) ? "" : usd_format.format(row.coin.usd)}
+                        return `${(row.coin.usd <= 0) ? "" : usd_format.format(row.coin.usd)}
                         <small class='${change_color}'>${(row.coin.usd <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>`
                     }
                     return data
-                    
+
                 },
                 defaultContent: ""
             },
             {
                 data: "percent_dif",
-                render: function(data, type, row) {
-                    if(type==='display'){
+                render: function (data, type, row) {
+                    if (type === 'display') {
                         let dif_color = (row.dif > 0) ? "text-success" : "text-danger"
                         return `<div class=${dif_color}>
                         ${(row.buy_qty <= 0 || row.coin.usd <= 0) ? "" : usd_format.format(row.dif)} 
-                        <small>${(row.dif == 0 ) ? "" : "(" +data.toFixed(2) + "%)"}</small>
+                        <small>${(row.dif == 0) ? "" : "(" + data.toFixed(2) + "%)"}</small>
                         </div>`
                     }
                     return data
@@ -199,7 +231,7 @@ async function del() {
 }
 
 function presentModal(row) {
-    
+
     var table = $('#main').DataTable()
     var data = table.row(row).data();
     let key = data[0]["@data-search"]
@@ -214,13 +246,13 @@ function presentModal(row) {
         style: 'currency',
     })
 
-    
+
     $("#exampleModal").modal("show");
     $("#modal-header").html(data[0].display)
     $("#modal-body").html(`
         <p>
-        Average Buy: ${(asset.buy_qty<=0) ? "Unbought" :usd_format.format(asset.average_buy)}<br>
-        Average Sell: ${(asset.sell_qty<=0) ? "Unsold" : usd_format.format(asset.average_sell)}<br>
+        Average Buy: ${(asset.buy_qty <= 0) ? "Unbought" : usd_format.format(asset.average_buy)}<br>
+        Average Sell: ${(asset.sell_qty <= 0) ? "Unsold" : usd_format.format(asset.average_sell)}<br>
         Price: ${asset.coin.usd} <label class="${change_color}">(${asset.coin.usd_24h_change.toFixed(2)})</label><br>
         Current - Buy: <label class="${dif_color}">${usd_format.format(asset.dif)} <small>(${asset.percent_dif.toFixed(2)}%)</label><br>
         <br>
@@ -232,10 +264,10 @@ function presentModal(row) {
         Profit: <label class="${profit_color}">${usd_format.format(asset.profit)}</label><br>
         <small class="text-muted">${usd_format.format(asset.revenue)}+${usd_format.format(asset.balance * asset.coin.usd)}-${usd_format.format(asset.cost)}</small><br>
         First trade: <br>
-        &nbsp; ${asset.earliest_trade.IsBuyer ? "Bought" : "Sold"} ${asset.earliest_trade.Qty} ${key} for ${usd_format.format(asset.earliest_trade.Price*asset.earliest_trade.Qty)} on
+        &nbsp; ${asset.earliest_trade.IsBuyer ? "Bought" : "Sold"} ${asset.earliest_trade.Qty} ${key} for ${usd_format.format(asset.earliest_trade.Price * asset.earliest_trade.Qty)} on
         ${new Date(asset.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
         Last trade: <br>
-        &nbsp; ${asset.latest_trade.IsBuyer ? "Bought" : "Sold"} ${asset.latest_trade.Qty} ${key} for ${usd_format.format(asset.latest_trade.Price*asset.latest_trade.Qty)} on
+        &nbsp; ${asset.latest_trade.IsBuyer ? "Bought" : "Sold"} ${asset.latest_trade.Qty} ${key} for ${usd_format.format(asset.latest_trade.Price * asset.latest_trade.Qty)} on
         ${new Date(asset.latest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
     `)
 }
