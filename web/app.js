@@ -74,12 +74,18 @@ function generateDownloadable(balance) {
 }
 
 function populateTable(binance) {
-    console.log(binance)
+    if ($.fn.dataTable.isDataTable('#main')) {
+        let table = $('#main').DataTable()
+        table.clear();
+        table.rows.add(newDataArray);
+        table.draw();
+        return
+    }
     const usd_format = new Intl.NumberFormat(`en-US`, {
         currency: `USD`,
         style: 'currency',
     })
-    table = $("#main").DataTable({
+    $("#main").DataTable({
         data: binance,
         paging: false,
         ordering: true,
@@ -94,89 +100,50 @@ function populateTable(binance) {
             {
                 data: "average_buy",
                 render: function(data, type, row) {
-                    var output = ""
-                    try {
-                        output = usd_format.format(data)
-                        // console.log(output)
-                    } catch (error) {
-                        console.error(error)
+                    if(type==='display'){
+                        return (row.buy_qty <= 0) ? "" :  usd_format.format(data)
                     }
-                    return (row.buy_qty <= 0) ? "" :  data.toFixed(2)
+                    return data
                 },
                 defaultContent: ""
             },
             {
                 data: "average_sell",
                 render: function(data, type, row) {
-                    return (row.sell_qty <= 0) ? "" : usd_format.format(data)
+                    if(type==='display'){
+                        return (row.sell_qty <= 0) ? "" :  usd_format.format(data)
+                    }
+                    return data
                 }
             },
             {
                 data: "coin.usd_24h_change",
                 render: function(data, type, row) {
-                    if(type==='display'||type==='filter'){
-                        let change = row.coin.usd_24h_change
+                    if(type==='display'){
+                        let change = data
                         let change_color = (change > 0) ? "text-success" : "text-danger"
                         return `${(row.coin.usd<=0) ? "" : usd_format.format(row.coin.usd)}
                         <small class='${change_color}'>${(row.coin.usd <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>`
                     }
-                    if(type==='sort'){
-                        return row.coin.usd_24h_change
-                    }
-                    // console.log(data)
-                    // console.log(type)
+                    return data
                     
                 },
                 defaultContent: ""
             },
             {
-                data: "dif",
+                data: "percent_dif",
                 render: function(data, type, row) {
-                    let dif_color = (data > 0) ? "text-success" : "text-danger"
-                    return `<div class=${dif_color}>
-                    ${(row.buy_qty <= 0 || row.coin.usd <= 0) ? "" : usd_format.format(data)} 
-                    <small>${(data == 0 ) ? "" : "(" + row.percent_dif.toFixed(2) + "%)"}</small>
-                    </div>`
+                    if(type==='display'){
+                        let dif_color = (row.dif > 0) ? "text-success" : "text-danger"
+                        return `<div class=${dif_color}>
+                        ${(row.buy_qty <= 0 || row.coin.usd <= 0) ? "" : usd_format.format(row.dif)} 
+                        <small>${(row.dif == 0 ) ? "" : "(" +data.toFixed(2) + "%)"}</small>
+                        </div>`
+                    }
+                    return data
                 }
             }
         ]
-    })
-    return
-    console.log(binance)
-    
-    if ($.fn.dataTable.isDataTable('#main')) {
-        $('#main').DataTable().destroy()
-    }
-
-    let tbody = document.getElementById("balances")
-    tbody.innerHTML = ""
-
-    // let usd_format = new Intl.NumberFormat(`en-US`, {
-    //     currency: `USD`,
-    //     style: 'currency',
-    // })
-    for ([key, val] of Object.entries(binance)) {
-        let change = val.coin.usd_24h_change
-        let change_color = (change > 0) ? "text-success" : "text-danger"
-        let dif_color = (val.dif > 0) ? "text-success" : "text-danger"
-        tbody.innerHTML += `<tr>
-            <td data-search="${key}"><a href="https://www.coingecko.com/en/coins/${val.coin.id}">${key}</a></td>
-            <td data-search="${val.balance*val.coin.usd}">${(val.buy_qty <= 0) ? "" : usd_format.format(val.average_buy)}</td>
-            <td>${(val.sell_qty <= 0) ? "" : usd_format.format(val.average_sell)}</td>
-            <td data-order="${change ?? 0}">
-                ${(val.coin.usd<=0) ? "" : usd_format.format(val.coin.usd)}
-                <small class='${change_color}'>${(val.coin.usd <= 0) ? "" : "(" + change.toFixed(2) + "%)"}</small>
-            </td>
-            <td data-order="${val.percent_dif}" class=${dif_color}>${(val.buy_qty <= 0 || val.coin.usd <= 0) ? "" : usd_format.format(val.dif)} 
-            <small>${(val.dif == 0 ) ? "" : "(" + val.percent_dif.toFixed(2) + "%)"}</small>
-            </td>
-        </tr>`
-    }
-    
-    $('#main').DataTable({
-        paging: false,
-        ordering: true,
-        order: [[3, "desc"]]
     })
 }
 
