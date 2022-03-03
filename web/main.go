@@ -67,7 +67,7 @@ type Trade struct {
 func main() {
 	fmt.Println("started wasm")
 	js.Global().Set("gorefresh", refreshWrapper())
-	select {}
+	<-make(chan bool)
 }
 
 func refreshWrapper() js.Func {
