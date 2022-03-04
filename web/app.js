@@ -32,10 +32,15 @@ const runWasmAdd = async () => {
     setup()
 };
 runWasmAdd();
+window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
 
 function setup() {
+    
     $(document).ready(function ($) {
-
+        document.getElementById("refresh-btn").disabled = false
+        document.getElementById("update-btn").disabled = false
+        document.getElementById("del-btn").disabled = false
+        document.getElementById("status").innerHTML = ""
         var urlParams = new URLSearchParams(window.location.search)
         if (urlParams.has('key')) {
             document.getElementById("key").value = urlParams.get('key')
@@ -70,6 +75,7 @@ function setup() {
 }
 
 async function refresh(key) {
+    window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
     let status = document.getElementById("status")
@@ -88,7 +94,7 @@ async function refresh(key) {
         status.innerHTML = "No trades found. Try providing your secret key and updating."
         generateDownloadable({})
     }
-    window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
+    
     populateTable(balanceResponse.binance)
     generateDownloadable(balanceResponse)
     status.className = "text-light"
