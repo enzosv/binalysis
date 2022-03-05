@@ -1,0 +1,44 @@
+name: Push-to-EC2
+# https://lightrains.com/blogs/deploy-aws-ec2-using-github-actions
+# Trigger deployment only on push to main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    environment: alibaba
+    name: Deploy to EC2 on main branch push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the files
+        uses: actions/checkout@v2
+      - name: Fetch dependencies
+        run: go get -d
+      - name: Build
+        run: go build
+      - name: Deploy
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.HOST_DNS }}
+          REMOTE_USER: ${{ secrets.USERNAME }}
+          TARGET: ${{ secrets.TARGET_DIR }}
+          EXCLUDE: "/.git/, /.github/, main.go, go.mod, go.sum, README.md, LICENSE, screenshot.png"
+      - name: Run
+        env:
+          TARGET: ${{ secrets.TARGET_DIR }}
+          REMOTE_USER: ${{ secrets.USERNAME }}
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          envs: TARGET
+          script: |
+            /usr/sbin/lsof -i:8080 -t | xargs kill -9
+            cd $TARGET
+            nohup ./binalysis -p 8080 > nohup.out 2> nohup.err < /dev/null &
