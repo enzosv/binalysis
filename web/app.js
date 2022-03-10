@@ -239,10 +239,7 @@ async function del() {
 function presentModal(row) {
 
     var table = $('#main').DataTable()
-    var data = table.row(row).data();
-    let key = data[0]["@data-search"]
-    let asset = balanceResponse.binance[key]
-    console.log(asset)
+    let asset = table.row(row).data();
     let profit_color = (asset.profit > 0) ? "text-success" : "text-danger"
     let change_color = (asset.coin.usd_24h_change > 0) ? "text-success" : "text-danger"
     let dif_color = (asset.dif > 0) ? "text-success" : "text-danger"
@@ -254,7 +251,7 @@ function presentModal(row) {
 
 
     $("#exampleModal").modal("show");
-    $("#modal-header").html(data[0].display)
+    $("#modal-header").html(`<a href="https://www.coingecko.com/en/coins/${asset.coin.id}">${asset.symbol.toUpperCase()}</a>`)
     $("#modal-body").html(`
         <p>
         Average Buy: ${(asset.buy_qty <= 0) ? "Unbought" : usd_format.format(asset.average_buy)}<br>
