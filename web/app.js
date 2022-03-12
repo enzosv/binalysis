@@ -1,4 +1,3 @@
-var balanceResponse = { "is_refreshing": true };
 const wasmBrowserInstantiate = async (wasmModuleUrl, importObject) => {
     let response = undefined;
 
@@ -32,7 +31,6 @@ const runWasmAdd = async () => {
     setup()
 };
 runWasmAdd();
-window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
 
 function setup() {
     
@@ -45,7 +43,7 @@ function setup() {
         if (urlParams.has('key')) {
             document.getElementById("key").value = urlParams.get('key')
             let key = urlParams.get('key')
-            refresh(key)
+            refresh(key, true)
         }
         $.fn.dataTable.ext.search.push(
             function (settings, data, dataIndex) {
@@ -74,19 +72,24 @@ function setup() {
     });
 }
 
-async function refresh(key) {
+async function refresh(key, is_updating) {
     window.history.replaceState(null, null, window.origin + "?key=" + document.getElementById("key").value);
     let btn = document.getElementById("refresh-btn")
     btn.disabled = true
     let status = document.getElementById("status")
     status.innerHTML = "Refreshing..."
     status.className = "text-light"
+    var balanceResponse
     try {
-        let request = gorefresh(key, window.location.origin + "/latest", balanceResponse.is_refreshing)
+        let request = gorefresh(key, window.location.origin + "/latest", is_updating)
         balanceResponse = await request
-
+        populateTable(balanceResponse.binance)
+        generateDownloadable(balanceResponse)
+        status.className = "text-light"
+        status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
+        btn.disabled = false
+        setTimeout(function () { refresh(key, balanceResponse.is_refreshing); }, 120000);
     } catch (err) {
-        balanceResponse = null
         console.error(err)
         document.getElementById("balances").innerHTML = ""
         btn.disabled = false
@@ -94,13 +97,6 @@ async function refresh(key) {
         status.innerHTML = "No trades found. Try providing your secret key and updating."
         generateDownloadable({})
     }
-    
-    populateTable(balanceResponse.binance)
-    generateDownloadable(balanceResponse)
-    status.className = "text-light"
-    status.innerHTML = "Last updated: " + new Date(balanceResponse.last_update).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric" })
-    btn.disabled = false
-    setTimeout(function () { refresh(key); }, 120000);
 }
 
 function generateDownloadable(balance) {
@@ -205,7 +201,7 @@ async function update() {
         status.className = "text-danger"
         status.innerHTML = result.error
     } else {
-        refresh(document.getElementById("key").value)
+        refresh(document.getElementById("key").value, true)
         status.className = "text-light"
         status.innerHTML = "This will take a while. Check back later."
     }
