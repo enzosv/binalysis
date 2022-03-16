@@ -264,7 +264,7 @@ function presentModal(row) {
         <small class="text-muted">${usd_format.format(asset.revenue)}+${usd_format.format(asset.balance * asset.coin.usd)}-${usd_format.format(asset.cost)}</small><br>
         First trade: <br>
         &nbsp; ${asset.earliest_trade.IsBuyer ? "Bought" : "Sold"} ${asset.earliest_trade.Qty} ${asset.symbol} for ${usd_format.format(asset.earliest_trade.Price * asset.earliest_trade.Qty)} 
-        at ${usd_format.format(asset.latest_trade.Price)}
+        at ${usd_format.format(asset.earliest_trade.Price)}
         on ${new Date(asset.earliest_trade.Time).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}<br>
         Last trade: <br>
         &nbsp; ${asset.latest_trade.IsBuyer ? "Bought" : "Sold"} ${asset.latest_trade.Qty} ${asset.symbol} for ${usd_format.format(asset.latest_trade.Price * asset.latest_trade.Qty)} 
