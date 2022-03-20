@@ -305,6 +305,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		"busd": true,
 		"usdc": true,
 		"tusd": true,
+		"ust":  true,
 	}
 	var cleaned []Clean
 	for k, v := range payload.Binance {
