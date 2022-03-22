@@ -1,7 +1,7 @@
 # What this is
-This is a tool to help you make sense of your trades on [binance](https://binance.com). <br>
-It uses your api key to collect your binance trade history and report your average buy and sell prices for each token.<br>
-Price information is fetched from [coingecko](https://coingecko.com)<br>
+This is a tool to help you make sense of your trades on [Binance](https://binance.com). <br>
+It uses your api key to collect your Binance trade history and report your average buy and sell prices for each token.<br>
+Price information is fetched from [Coingecko](https://coingecko.com)<br>
 Not all information is captured yet. 
 
 [Demo](https://binalysis.enzosv.xyz)
@@ -10,20 +10,20 @@ Not all information is captured yet.
 ![preview](https://github.com/enzosv/binalysis/blob/main/screenshot.png)
 
 ## Features
+* Automatic. Only requires Binance API Key and Secret.
 * Report is saved as json for faster fetching next time
 * Report can be deleted
 * No tracking or data collection whatsoever
+* Reports all prices in USD
 
 ## Limitations
-* Only fetches trades for crypto with balance above 0
-* Trades for USDT, BUSD, USDC, UST are ignored
-* Only matches crypto pairs against USDC and BUSD
+* Does not read balance in Locked Staking
+* Only uses string matching for comparing Binance and Coingecko tokens. May be inaccurate.
 
 ## Disclaimers
 * Not financial advice
 * Limited and untested security
 * **Make sure to use a read only api key**
-* Price matching may be inaccurate
 * Work in progress
 
 ## TODO
