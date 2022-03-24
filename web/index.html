@@ -8,11 +8,13 @@
         integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
     <script src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    
+
     <link rel="stylesheet" href="main.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
     <script src="wasm_exec.js"></script>
     <script src="app.js"></script>
 </head>
@@ -21,17 +23,18 @@
     <div>
         <label>Search: </label>
         <input id="search" type="search" aria-controls="main" placeholder="BTC">
-        
+
         <div class="form-check form-switch d-inline-block">
-            <label class="form-check-label" for="hide-small">Hide small balances <small class="text-muted">may be inaccurate</small></label>
+            <label class="form-check-label" for="hide-small">Hide small balances <small class="text-muted">may be
+                    inaccurate</small></label>
             <input class="form-check-input" type="checkbox" id="hide-small">
-            
+
         </div>
     </div>
     <div class="table-responsive p-1">
         <table id="main" class="table table-dark table-striped table-hover">
 
-            <thead>
+            <thead style="position: sticky;top: 0">
                 <th>Symbol</th>
                 <!-- <th>Date</th> -->
                 <th>Average Buy</th>
@@ -53,7 +56,7 @@
             </tbody>
         </table>
     </div>
-   
+
     <div class="container-fluid">
         <div class="row">
             <div class="col-sm-6">
@@ -66,18 +69,20 @@
                                 placeholder="Binance API Key" autocomplete="on">
                             <div class="input-group-append">
                                 <button id="refresh-btn" class="btn btn-primary" type="button"
-                                    onclick="refresh(document.getElementById('key').value, true)" disabled>Refresh</button>
-                                <button id="del-btn" class="btn btn-danger" type="button"
-                                    onclick="del()" disabled>Delete</button>
+                                    onclick="refresh(document.getElementById('key').value, true)"
+                                    disabled>Refresh</button>
+                                <button id="del-btn" class="btn btn-danger" type="button" onclick="del()"
+                                    disabled>Delete</button>
                             </div>
                         </div>
-                        <small class="text-muted">Secret key required only when updating. Treat this as your password. Store it in your password manager and keep it secret.</small>
+                        <small class="text-muted">Secret key required only when updating. Treat this as your password.
+                            Store it in your password manager and keep it secret.</small>
                         <div class="input-group mb-3">
                             <input for="password" id="secret" type="password" class="form-control"
                                 placeholder="Binance Secret Key" autocomplete="on">
                             <div class="input-group-append">
-                                <button id="update-btn" class="btn btn-info" type="button"
-                                    onclick="update()" disabled>Update</button>
+                                <button id="update-btn" class="btn btn-info" type="button" onclick="update()"
+                                    disabled>Update</button>
                             </div>
                         </div>
                         <small id="status" class="text-light">Loading...</small>
@@ -96,8 +101,10 @@
             <div class="col-sm-3">
                 <h6>About</h6>
                 <p>
-                    Automatic <a href="https://binance.com">binance</a> portfolio tracker. This uses your api key to find trades and generate you a report in USD.
-                    <br><b>May be inaccurate.</b> Assets in <a href="https://www.binance.com/en/earn/">earn</a> but not in flexible savings are not counted yet. More info in <a href="https://github.com/enzosv/binalysis">github</a>.
+                    Automatic <a href="https://binance.com">binance</a> portfolio tracker. This uses your api key to
+                    find trades and generate you a report in USD.
+                    <br><b>May be inaccurate.</b> Does not read balance in Locked Staking yet. More info in <a
+                        href="https://github.com/enzosv/binalysis">github</a>.
                 </p>
                 <h6>Tips appreciated</h6>
                 <p>0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9</p>
@@ -105,16 +112,17 @@
         </div>
     </div>
 
-    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog" role="document">
-          <div class="modal-content bg-dark text-light">
-            <div class="modal-header" id="modal-header">
-              ...
+            <div class="modal-content bg-dark text-light">
+                <div class="modal-header" id="modal-header">
+                    ...
+                </div>
+                <div class="modal-body" id="modal-body">
+                    ...
+                </div>
             </div>
-            <div class="modal-body" id="modal-body">
-              ...
-            </div>
-          </div>
         </div>
     </div>
 </body>
