@@ -1,6 +1,4 @@
 th {
-  position: sticky;
-  top: 0;
   background-color: black;
 }
 table {
@@ -22,3 +20,8 @@ table {
     100% { transform: rotate(360deg); }
   }
   .dataTables_filter { display: none; }
+  .sticky-top {
+    position: -webkit-sticky; /* Safari */
+    position: sticky;
+    top: 0; 
+  }
