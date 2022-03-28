@@ -33,7 +33,7 @@ const runWasmAdd = async () => {
 runWasmAdd();
 
 function setup() {
-    
+
     $(document).ready(function ($) {
         document.getElementById("refresh-btn").disabled = false
         document.getElementById("update-btn").disabled = false
@@ -121,6 +121,7 @@ function populateTable(binance) {
     })
     $("#main").DataTable({
         data: binance,
+        fixedHeader: true,
         paging: false,
         ordering: true,
         order: [[3, "desc"]],
