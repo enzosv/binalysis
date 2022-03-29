@@ -32,12 +32,13 @@ type Asset struct {
 }
 
 type Pair struct {
-	BuyQty        float64        `json:"buy_qty"`
-	Cost          float64        `json:"cost"`
-	SellQty       float64        `json:"sell_qty"`
-	Revenue       float64        `json:"revenue"`
-	EarliestTrade *binance.Trade `json:"earliest_trade"`
-	LatestTrade   *binance.Trade `json:"latest_trade"`
+	BuyQty        float64            `json:"buy_qty"`
+	Cost          float64            `json:"cost"`
+	SellQty       float64            `json:"sell_qty"`
+	Revenue       float64            `json:"revenue"`
+	Fees          map[string]float64 `json:"fees"`
+	EarliestTrade *binance.Trade     `json:"earliest_trade"`
+	LatestTrade   *binance.Trade     `json:"latest_trade"`
 }
 
 type Payload struct {
@@ -52,7 +53,9 @@ func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 	}
 	earliest := pair.EarliestTrade
 	latest := pair.LatestTrade
+	fees := map[string]float64{}
 	for _, t := range trades {
+		fees[t.CommissionAsset] += t.Commission
 		if t.IsBuyer {
 			pair.BuyQty += t.Qty
 			pair.Cost += t.Price * t.Qty
@@ -76,6 +79,7 @@ func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 	}
 	pair.EarliestTrade = earliest
 	pair.LatestTrade = latest
+	pair.Fees = fees
 	new := a
 	if new.Pairs == nil {
 		new.Pairs = map[string]Pair{}
@@ -124,7 +128,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		key := r.Header.Get("X-API-Key")
 		path := fmt.Sprintf("%s/%s.json", store, key)
 		existing := loadExisting(path)
-		nextAvailable := existing.LastUpdate.Add(time.Minute * 10)
+		nextAvailable := existing.LastUpdate.Add(time.Minute * 1)
 		if time.Now().Unix() < nextAvailable.Unix() {
 			response := map[string]string{"error": fmt.Sprintf("Updated recently. Try again at %s", nextAvailable.Add(time.Minute).Format("3:04PM"))}
 			w.WriteHeader(http.StatusTooManyRequests)
