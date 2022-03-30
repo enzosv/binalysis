@@ -19,12 +19,13 @@ type Asset struct {
 	Pairs   map[string]Pair `json:"pairs"`
 }
 type Pair struct {
-	BuyQty        float64 `json:"buy_qty"`
-	Cost          float64 `json:"cost"`
-	SellQty       float64 `json:"sell_qty"`
-	Revenue       float64 `json:"revenue"`
-	EarliestTrade *Trade  `json:"earliest_trade"`
-	LatestTrade   *Trade  `json:"latest_trade"`
+	BuyQty        float64            `json:"buy_qty"`
+	Cost          float64            `json:"cost"`
+	SellQty       float64            `json:"sell_qty"`
+	Revenue       float64            `json:"revenue"`
+	Fees          map[string]float64 `json:"fees"`
+	EarliestTrade *Trade             `json:"earliest_trade"`
+	LatestTrade   *Trade             `json:"latest_trade"`
 }
 type Coin struct {
 	ID        string  `json:"id"`
@@ -336,6 +337,10 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 				new.Revenue *= coin.USD
 				new.EarliestTrade.Price *= coin.USD
 				new.LatestTrade.Price *= coin.USD
+			}
+			for fs, fee := range new.Fees {
+				fcoin := coins[strings.ToLower(fs)]
+				clean.Cost += fee * fcoin.USD
 			}
 
 			clean.BuyQty += new.BuyQty
