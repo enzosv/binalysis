@@ -180,12 +180,17 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response)
 			return
 		}
-
-		go func(ctx context.Context, path string) {
+		go func(ctx context.Context, path, key, secret string) {
 			start := time.Now().Unix()
+			_, err := update(ctx, b, payload, path, verbose)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			// perform after update to ignore untraded
 			client := binance2.NewClient(key, secret)
 			for k, v := range payload.Assets {
-				latest, total, err := fetchDistributions(r.Context(), client, k, v.DistributionTotal, v.LatestDistributionTime)
+				latest, total, err := fetchDistributions(ctx, client, k, v.DistributionTotal, v.LatestDistributionTime)
 				if err != nil {
 					continue
 				}
@@ -193,15 +198,10 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 				v.LatestDistributionTime = latest
 				payload.Assets[k] = v
 			}
-			_, err := update(ctx, b, payload, path, verbose)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
 			if verbose {
 				fmt.Printf("%s done after %d seconds\n", r.RemoteAddr, time.Now().Unix()-start)
 			}
-		}(r.Context(), path)
+		}(r.Context(), path, key, secret)
 		http.ServeFile(w, r, path)
 	}
 }
@@ -245,6 +245,9 @@ func fetchDistributions(ctx context.Context, client *binance2.Client, symbol str
 	if len(rows) >= 500 {
 		// TODO: fetch more distributions
 		// return fetchDistributions(ctx, client, symbol, newTotal, rows[0].Time+1)
+	}
+	if len(rows) < 1 {
+		return 0, 0, nil
 	}
 	return rows[0].ID, newTotal, nil
 }
