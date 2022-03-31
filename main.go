@@ -9,10 +9,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/NYTimes/gziphandler"
+	binance2 "github.com/adshao/go-binance/v2"
 	"github.com/binance-exchange/go-binance"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -27,8 +29,10 @@ type PairsResponse struct {
 	} `json:"data"`
 }
 type Asset struct {
-	Balance float64         `json:"balance"`
-	Pairs   map[string]Pair `json:"pairs"`
+	Balance                float64         `json:"balance"`
+	Pairs                  map[string]Pair `json:"pairs"`
+	LatestDistributionTime int64           `json:"latest_distribution_time"`
+	DistributionTotal      float64         `json:"distribution_total"`
 }
 
 type Pair struct {
@@ -158,6 +162,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response)
 			return
 		}
+
 		file, err := json.Marshal(payload)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
@@ -175,8 +180,19 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 			json.NewEncoder(w).Encode(response)
 			return
 		}
+
 		go func(ctx context.Context, path string) {
 			start := time.Now().Unix()
+			client := binance2.NewClient(key, secret)
+			for k, v := range payload.Assets {
+				latest, total, err := fetchDistributions(r.Context(), client, k, v.DistributionTotal, v.LatestDistributionTime)
+				if err != nil {
+					continue
+				}
+				v.DistributionTotal = total
+				v.LatestDistributionTime = latest
+				payload.Assets[k] = v
+			}
 			_, err := update(ctx, b, payload, path, verbose)
 			if err != nil {
 				fmt.Println(err)
@@ -204,6 +220,33 @@ func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
 	}
+}
+
+func fetchDistributions(ctx context.Context, client *binance2.Client, symbol string, total float64, start int64) (int64, float64, error) {
+	request := client.NewAssetDividendService().Asset(symbol).Limit(500)
+	if start > 0 {
+		request = request.StartTime(start + 1).EndTime(time.Now().Unix())
+	}
+	distributions, err := request.Do(ctx)
+	if err != nil {
+		fmt.Println(err)
+		return 0, 0, err
+	}
+	rows := *distributions.Rows
+	newTotal := total
+	for _, d := range rows {
+		amount, err := strconv.ParseFloat(d.Amount, 64)
+		if err != nil {
+			fmt.Println(err)
+			return 0, 0, err
+		}
+		newTotal += amount
+	}
+	if len(rows) >= 500 {
+		// TODO: fetch more distributions
+		// return fetchDistributions(ctx, client, symbol, newTotal, rows[0].Time+1)
+	}
+	return rows[0].ID, newTotal, nil
 }
 
 func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, error) {
