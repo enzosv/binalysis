@@ -15,6 +15,7 @@ import (
 
 	"github.com/NYTimes/gziphandler"
 	binance2 "github.com/adshao/go-binance/v2"
+	common "github.com/adshao/go-binance/v2/common"
 	"github.com/binance-exchange/go-binance"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -221,14 +222,16 @@ func fetchDistributions(ctx context.Context, client *binance2.Client, symbol str
 	}
 	distributions, err := request.Do(ctx)
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "-1003") {
-			// api rate limit. Wait
-			// TODO: persist while waiting
-			if verbose {
-				fmt.Printf("[%s] Waiting for limit to refresh distributions\n", symbol)
+		if ae, ok := err.(*common.APIError); ok {
+			if ae.Code == -1003 {
+				// api rate limit. Wait
+				// TODO: persist while waiting
+				if verbose {
+					fmt.Printf("[%s] Waiting for limit to refresh distributions\n", symbol)
+				}
+				time.Sleep(time.Minute)
+				return fetchDistributions(ctx, client, symbol, total, start, verbose)
 			}
-			time.Sleep(time.Minute)
-			return fetchDistributions(ctx, client, symbol, total, start, verbose)
 		}
 		err = errors.Wrap(err, fmt.Sprintf("[%s] fetching distributions", symbol))
 		fmt.Println(err)
@@ -254,7 +257,7 @@ func fetchDistributions(ctx context.Context, client *binance2.Client, symbol str
 	if len(rows) < 1 {
 		return start, newTotal, nil
 	}
-	return rows[0].ID, newTotal, nil
+	return rows[0].Time, newTotal, nil
 }
 
 func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, error) {
@@ -355,6 +358,7 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 					RecvWindow: 60 * time.Second,
 					Timestamp:  time.Now(),
 					FromID:     fromID,
+					// Limit:      1000,
 				})
 				if err != nil {
 					if strings.HasPrefix(err.Error(), "-1003") {
