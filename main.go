@@ -183,20 +183,11 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 
 		go func(ctx context.Context, path string) {
 			start := time.Now().Unix()
-			_, err := update(ctx, b, payload, path, verbose)
+			client := binance2.NewClient(key, secret)
+			_, err := update(ctx, b, client, payload, path, verbose)
 			if err != nil {
 				fmt.Println(err)
 				return
-			}
-			client := binance2.NewClient(key, secret)
-			for k, v := range payload.Assets {
-				latest, total, err := fetchDistributions(r.Context(), client, k, v.DistributionTotal, v.LatestDistributionTime, verbose)
-				if err != nil {
-					continue
-				}
-				v.DistributionTotal = total
-				v.LatestDistributionTime = latest
-				payload.Assets[k] = v
 			}
 			persist(payload.Assets, path, 0, verbose)
 			if verbose {
@@ -237,7 +228,6 @@ func fetchDistributions(ctx context.Context, client *binance2.Client, symbol str
 				fmt.Printf("[%s] Waiting for limit to refresh distributions\n", symbol)
 			}
 			time.Sleep(time.Minute)
-			// fromID not updated so it will be retried on continue
 			return fetchDistributions(ctx, client, symbol, total, start, verbose)
 		}
 		err = errors.Wrap(err, fmt.Sprintf("[%s] fetching distributions", symbol))
@@ -257,6 +247,12 @@ func fetchDistributions(ctx context.Context, client *binance2.Client, symbol str
 	if len(rows) >= 500 {
 		// TODO: fetch more distributions
 		// return fetchDistributions(ctx, client, symbol, newTotal, rows[0].Time+1)
+	}
+	if verbose {
+		fmt.Printf("[%s] %.2f distributed\n", symbol, newTotal)
+	}
+	if len(rows) < 1 {
+		return start, newTotal, nil
 	}
 	return rows[0].ID, newTotal, nil
 }
@@ -328,7 +324,7 @@ func fetchPairs() (PairsResponse, error) {
 	return pairs, nil
 }
 
-func update(ctx context.Context, b binance.Binance, payload Payload, path string, verbose bool) (map[string]Asset, error) {
+func update(ctx context.Context, b binance.Binance, client *binance2.Client, payload Payload, path string, verbose bool) (map[string]Asset, error) {
 
 	pairs, err := fetchPairs()
 	if err != nil {
@@ -339,6 +335,7 @@ func update(ctx context.Context, b binance.Binance, payload Payload, path string
 	// TODO: prioritize balances that have changed and are > 0
 	for k, existing := range bals {
 		new := existing
+		// fetch trades
 		for _, p := range pairs.Data {
 			if p.Buying != k {
 				continue
@@ -372,13 +369,13 @@ func update(ctx context.Context, b binance.Binance, payload Payload, path string
 
 						}(bals, path, total, verbose)
 						if verbose {
-							fmt.Printf("[%s] Waiting for limit to refresh\n", product)
+							fmt.Printf("[%s] Waiting for limit to refresh trades\n", product)
 						}
 						time.Sleep(time.Minute)
 						// fromID not updated so it will be retried on continue
 						continue
 					} else {
-						err = errors.Wrap(err, fmt.Sprintf("[%s] fetching", product))
+						err = errors.Wrap(err, fmt.Sprintf("[%s] fetching trades", product))
 						fmt.Println(err)
 						break
 					}
@@ -409,10 +406,18 @@ func update(ctx context.Context, b binance.Binance, payload Payload, path string
 				fmt.Printf("%s untraded. Removing\n", k)
 			}
 			delete(bals, k)
-		} else {
-			bals[k] = new
+			continue
 		}
-
+		if verbose {
+			fmt.Printf("[%s] fetching distributions\n", k)
+		}
+		// fetch distributions
+		dlatest, dtotal, err := fetchDistributions(context.Background(), client, k, existing.DistributionTotal, existing.LatestDistributionTime, verbose)
+		if err == nil {
+			new.DistributionTotal = dtotal
+			new.LatestDistributionTime = dlatest
+		}
+		bals[k] = new
 	}
 	if verbose {
 		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
