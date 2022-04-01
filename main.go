@@ -183,9 +183,14 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 
 		go func(ctx context.Context, path string) {
 			start := time.Now().Unix()
+			_, err := update(ctx, b, payload, path, verbose)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 			client := binance2.NewClient(key, secret)
 			for k, v := range payload.Assets {
-				latest, total, err := fetchDistributions(r.Context(), client, k, v.DistributionTotal, v.LatestDistributionTime)
+				latest, total, err := fetchDistributions(r.Context(), client, k, v.DistributionTotal, v.LatestDistributionTime, verbose)
 				if err != nil {
 					continue
 				}
@@ -193,11 +198,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 				v.LatestDistributionTime = latest
 				payload.Assets[k] = v
 			}
-			_, err := update(ctx, b, payload, path, verbose)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+			persist(payload.Assets, path, 0, verbose)
 			if verbose {
 				fmt.Printf("%s done after %d seconds\n", r.RemoteAddr, time.Now().Unix()-start)
 			}
@@ -222,13 +223,24 @@ func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 	}
 }
 
-func fetchDistributions(ctx context.Context, client *binance2.Client, symbol string, total float64, start int64) (int64, float64, error) {
+func fetchDistributions(ctx context.Context, client *binance2.Client, symbol string, total float64, start int64, verbose bool) (int64, float64, error) {
 	request := client.NewAssetDividendService().Asset(symbol).Limit(500)
 	if start > 0 {
 		request = request.StartTime(start + 1).EndTime(time.Now().Unix())
 	}
 	distributions, err := request.Do(ctx)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "-1003") {
+			// api rate limit. Wait
+			// TODO: persist while waiting
+			if verbose {
+				fmt.Printf("[%s] Waiting for limit to refresh distributions\n", symbol)
+			}
+			time.Sleep(time.Minute)
+			// fromID not updated so it will be retried on continue
+			return fetchDistributions(ctx, client, symbol, total, start, verbose)
+		}
+		err = errors.Wrap(err, fmt.Sprintf("[%s] fetching distributions", symbol))
 		fmt.Println(err)
 		return 0, 0, err
 	}
