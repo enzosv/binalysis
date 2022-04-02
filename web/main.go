@@ -15,8 +15,9 @@ type Payload struct {
 	Binance    map[string]Asset `json:"binance"`
 }
 type Asset struct {
-	Balance float64         `json:"balance"`
-	Pairs   map[string]Pair `json:"pairs"`
+	Balance           float64         `json:"balance"`
+	DistributionTotal float64         `json:"distribution_total":`
+	Pairs             map[string]Pair `json:"pairs"`
 }
 type Pair struct {
 	BuyQty        float64            `json:"buy_qty"`
@@ -317,6 +318,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 			continue
 		}
 		clean := Clean{}
+		clean.BuyQty = v.DistributionTotal
 		clean.Symbol = k
 		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
 		clean.LatestTrade.Time = time.Unix(0, 0)
