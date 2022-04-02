@@ -336,16 +336,19 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 			continue
 		}
 		clean := Clean{}
-		clean.BuyQty = v.DistributionTotal
 		clean.Symbol = k
+		clean.Coin = coins[strings.ToLower(k)]
+		clean.BuyQty = v.DistributionTotal
+		clean.TotalDistibutions = v.DistributionTotal * clean.Coin.USD
+		clean.Balance = v.Balance
+
 		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
 		clean.LatestTrade.Time = time.Unix(0, 0)
-		clean.Coin = coins[strings.ToLower(k)]
-		clean.Balance = v.Balance
 		for kk, vv := range v.Pairs {
 			new := vv
 			symbol := strings.ToLower(kk)
 			if _, ok := stablecoins[symbol]; !ok {
+				// convert to usd if not already
 				coin := coins[symbol]
 				if clean.Coin.USD == 0 {
 					clean.Coin = coin
@@ -359,11 +362,13 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 				new.LatestTrade.Price *= coin.USD
 			}
 			for fs, fee := range new.Fees {
+				// convert to usd
 				fcoin := coins[strings.ToLower(fs)]
 				clean.Cost += fee * fcoin.USD
 				clean.TotalFee += fee * fcoin.USD
 			}
 
+			// combine
 			clean.BuyQty += new.BuyQty
 			clean.Cost += new.Cost
 			clean.SellQty += new.SellQty
@@ -387,7 +392,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		if clean.SellQty != 0 {
 			clean.AverageSell = clean.Revenue / clean.SellQty
 		}
-		clean.TotalDistibutions = v.DistributionTotal * clean.Coin.USD
+
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
 		cleaned = append(cleaned, clean)
 	}
