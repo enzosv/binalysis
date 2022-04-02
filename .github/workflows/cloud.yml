@@ -20,7 +20,7 @@ jobs:
       - name: Build
         run: go build
       - name: Wasm build
-        run: cd web && GOOS=js GOARCH=wasm go build -o web/web.wasm
+        run: cd web && GOOS=js GOARCH=wasm go build -o web.wasm
       - name: Deploy
         uses: easingthemes/ssh-deploy@main
         env:
