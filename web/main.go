@@ -337,7 +337,6 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		}
 		clean := Clean{}
 		clean.BuyQty = v.DistributionTotal
-		clean.TotalDistibutions = v.DistributionTotal
 		clean.Symbol = k
 		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
 		clean.LatestTrade.Time = time.Unix(0, 0)
@@ -388,7 +387,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		if clean.SellQty != 0 {
 			clean.AverageSell = clean.Revenue / clean.SellQty
 		}
-
+		clean.TotalDistibutions = v.DistributionTotal * clean.Coin.USD
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
 		cleaned = append(cleaned, clean)
 	}
