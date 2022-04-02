@@ -179,7 +179,7 @@ func refresh(key, url string, isRefershing bool) (map[string]interface{}, error)
 		revenue: %.2f
 		distributions: %.2f
 		fees: %.2f
-	`)
+	`, totalCost, totalRevenue, totalDistributions, totalFees)
 	return map[string]interface{}{"binance": cleaned, "last_update": payload.LastUpdate, "is_refreshing": isRefreshing}, nil
 }
 
