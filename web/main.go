@@ -37,20 +37,22 @@ type Coin struct {
 	Change    float64 `json:"usd_24h_change"`
 }
 type Clean struct {
-	Symbol        string  `json:"symbol"`
-	Coin          Coin    `json:"coin"`
-	AverageBuy    float64 `json:"average_buy"`
-	AverageSell   float64 `json:"average_sell"`
-	Cost          float64 `json:"cost"`
-	Revenue       float64 `json:"revenue"`
-	BuyQty        float64 `json:"buy_qty"`
-	SellQty       float64 `json:"sell_qty"`
-	EarliestTrade Trade   `json:"earliest_trade"`
-	LatestTrade   Trade   `json:"latest_trade"`
-	Balance       float64 `json:"balance"`
-	Profit        float64 `json:"profit"`
-	Dif           float64 `json:"dif"`
-	PercentDif    float64 `json:"percent_dif"`
+	Symbol            string  `json:"symbol"`
+	Coin              Coin    `json:"coin"`
+	AverageBuy        float64 `json:"average_buy"`
+	AverageSell       float64 `json:"average_sell"`
+	Cost              float64 `json:"cost"`
+	Revenue           float64 `json:"revenue"`
+	BuyQty            float64 `json:"buy_qty"`
+	SellQty           float64 `json:"sell_qty"`
+	EarliestTrade     Trade   `json:"earliest_trade"`
+	LatestTrade       Trade   `json:"latest_trade"`
+	Balance           float64 `json:"balance"`
+	Profit            float64 `json:"profit"`
+	Dif               float64 `json:"dif"`
+	PercentDif        float64 `json:"percent_dif"`
+	TotalFee          float64 `json:"total_fee"`
+	TotalDistibutions float64 `json:""total_distributions`
 }
 
 // from binance-go
@@ -162,6 +164,22 @@ func refresh(key, url string, isRefershing bool) (map[string]interface{}, error)
 			break
 		}
 	}
+	totalDistributions := 0.0
+	totalCost := 0.0
+	totalRevenue := 0.0
+	totalFees := 0.0
+	for _, c := range cleaned {
+		totalDistributions += c.TotalDistibutions
+		totalCost += c.Cost
+		totalRevenue += c.Revenue
+		totalFees += c.TotalFee
+	}
+	fmt.Printf(`
+		cost: %.2f
+		revenue: %.2f
+		distributions: %.2f
+		fees: %.2f
+	`)
 	return map[string]interface{}{"binance": cleaned, "last_update": payload.LastUpdate, "is_refreshing": isRefreshing}, nil
 }
 
@@ -319,6 +337,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		}
 		clean := Clean{}
 		clean.BuyQty = v.DistributionTotal
+		clean.TotalDistibutions = v.DistributionTotal
 		clean.Symbol = k
 		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
 		clean.LatestTrade.Time = time.Unix(0, 0)
@@ -343,6 +362,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 			for fs, fee := range new.Fees {
 				fcoin := coins[strings.ToLower(fs)]
 				clean.Cost += fee * fcoin.USD
+				clean.TotalFee += fee * fcoin.USD
 			}
 
 			clean.BuyQty += new.BuyQty
