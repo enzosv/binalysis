@@ -339,6 +339,7 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 	for k, existing := range bals {
 		new := existing
 		// fetch trades
+		// TODO: separate function
 		for _, p := range pairs.Data {
 			if p.Buying != k {
 				continue
@@ -364,8 +365,6 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 					if strings.HasPrefix(err.Error(), "-1003") {
 						// api rate limit. Wait
 						// persist while waiting
-						// TODO: do not persist if nothing new since last persist
-
 						go func(bals map[string]Asset, path string, total int, verbose bool) {
 							// ok to ignore persist error. It will be retried
 							// persist despite nothing new to update last_update
@@ -403,7 +402,6 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 				new = new.compute(p.Selling, trades)
 			}
 		}
-		// update asset map after fetching all trades for a product
 		if new.Pairs == nil {
 			// remove untraded
 			if verbose {
@@ -421,6 +419,7 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 			new.DistributionTotal = dtotal
 			new.LatestDistributionTime = dlatest
 		}
+		// update asset map after fetching all trades and distributions for an asset
 		bals[k] = new
 	}
 	if verbose {
