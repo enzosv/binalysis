@@ -382,6 +382,12 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 					}
 					clean.Cost += pk.Cost
 					clean.Revenue += pk.Revenue
+					if clean.EarliestTrade.Time.Unix() > pk.EarliestTrade.Time.Unix() {
+						clean.EarliestTrade = *pk.EarliestTrade
+					}
+					if clean.LatestTrade.Time.Unix() < pk.LatestTrade.Time.Unix() {
+						clean.LatestTrade = *pk.LatestTrade
+					}
 				}
 			}
 			clean.BuyQty += new.BuyQty
