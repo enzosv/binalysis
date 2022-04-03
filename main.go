@@ -135,7 +135,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		key := r.Header.Get("X-API-Key")
 		path := fmt.Sprintf("%s/%s.json", store, key)
 		existing := loadExisting(path)
-		nextAvailable := existing.LastUpdate.Add(time.Minute * 5)
+		nextAvailable := existing.LastUpdate.Add(time.Minute * 1)
 		if time.Now().Unix() < nextAvailable.Unix() {
 			response := map[string]string{"error": fmt.Sprintf("Updated recently. Try again at %s", nextAvailable.Add(time.Minute).Format("3:04PM"))}
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -567,18 +567,38 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 	if newAssets == nil {
 		newAssets = map[string]Asset{}
 	}
+	earliest := time.Now().UnixMilli()
 	for _, o := range os {
+		e := o.CreatedAt
+		if e < earliest {
+			earliest = e
+		}
 		filled := !o.IsActive && !o.CancelExist
 		if !filled {
+			fmt.Println("not filled", o.Symbol)
 			continue
 		}
 		qty, err := strconv.ParseFloat(o.DealSize, 64)
 		if err != nil {
 			return nil, err
 		}
+		if qty <= 0 {
+			continue
+		}
 		price, err := strconv.ParseFloat(o.Price, 64)
 		if err != nil {
 			return nil, err
+		}
+		if price == 0 {
+			spent, err := strconv.ParseFloat(o.DealFunds, 64)
+			if err != nil {
+				return nil, err
+			}
+			price = spent / qty
+			if price == 0 {
+				fmt.Println("0 price", o.Symbol)
+				continue
+			}
 		}
 		fee, err := strconv.ParseFloat(o.Fee, 64)
 		if err != nil {
@@ -608,14 +628,17 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 			pair.Revenue += (price * qty)
 		}
 		if verbose {
-			fmt.Println("%s %.2f %s for %.2f at %.2f on %s", o.Side, qty, o.Symbol, (price * qty), price, o.CreatedAt)
+			fmt.Printf("%s %.2f %s for %.2f at %.2f on %d\n", o.Side, qty, o.Symbol, (price * qty), price, o.CreatedAt)
 		}
 		t := time.UnixMilli(o.CreatedAt)
 		trade := binance.Trade{}
+		// trade.ID = o.Id
 		trade.Time = t
 		trade.IsBuyer = o.Side == "buy"
 		trade.Price = price
 		trade.Qty = qty
+		trade.Commission = fee
+		trade.CommissionAsset = o.FeeCurrency
 		if pair.LatestTrade == nil || pair.LatestTrade.Time.Unix() < t.Unix() {
 			pair.LatestTrade = &trade
 		}
@@ -631,16 +654,7 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		return fetchKucoinTrades(s, startAt, time.Now().UnixMilli(), page+1, newAssets, verbose)
 	}
 	// fetch older than earliest
-	earliest := time.Now().UnixMilli()
 	if len(os) > 0 {
-		for _, v := range newAssets {
-			for _, vv := range v.Pairs {
-				e := vv.EarliestTrade.Time.UnixMilli()
-				if e < earliest {
-					earliest = e
-				}
-			}
-		}
 		return fetchKucoinTrades(s, 0, earliest-1, 1, newAssets, verbose)
 	}
 	return newAssets, nil
