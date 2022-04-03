@@ -231,8 +231,14 @@ func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("X-API-Key")
 		// no extra auth. anyone with key can delete
-		err := os.Remove(fmt.Sprintf("%s/%s.json", store, key))
+		path := fmt.Sprintf("%s/%s.json", store, key)
+
+		err := os.Remove(path)
 		if err != nil {
+			if os.IsNotExist(err) {
+				http.Error(w, "File not found", http.StatusNotFound)
+				return
+			}
 			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
