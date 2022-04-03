@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.18'
-      - run: go get -d go build && cd web && GOOS=js GOARCH=wasm go build -o web.wasm
+      - run: go get -d go build
       - name: Deploy
         uses: easingthemes/ssh-deploy@main
         env:
