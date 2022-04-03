@@ -238,7 +238,7 @@ func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 			return
 		}
 		response := map[string]bool{"deleted": true}
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
 	}
 }
@@ -585,11 +585,8 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		if qty <= 0 {
 			continue
 		}
-		price, err := strconv.ParseFloat(o.Price, 64)
-		if err != nil {
-			return nil, err
-		}
-		if price == 0 {
+		price := 0.0
+		if o.Price == "0" {
 			spent, err := strconv.ParseFloat(o.DealFunds, 64)
 			if err != nil {
 				return nil, err
@@ -598,6 +595,11 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 			if price == 0 {
 				fmt.Println("0 price", o.Symbol)
 				continue
+			}
+		} else {
+			price, err = strconv.ParseFloat(o.Price, 64)
+			if err != nil {
+				return nil, err
 			}
 		}
 		fee, err := strconv.ParseFloat(o.Fee, 64)
