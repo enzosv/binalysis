@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Kucoin/kucoin-go-sdk"
 	"github.com/NYTimes/gziphandler"
 	binance2 "github.com/adshao/go-binance/v2"
 	common "github.com/adshao/go-binance/v2/common"
@@ -49,6 +50,7 @@ type Pair struct {
 type Payload struct {
 	LastUpdate time.Time        `json:"last_update"`
 	Assets     map[string]Asset `json:"binance"`
+	Kucoin     map[string]Asset `json:"kucoin"`
 }
 
 func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
@@ -142,6 +144,10 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		}
 
 		secret := r.Header.Get("X-Secret-Key")
+
+		kkey := r.Header.Get("K-API-Key")
+		ksecret := r.Header.Get("K-Secret-Key")
+		kpass := r.Header.Get("K-Passphrase")
 		hmacSigner := &binance.HmacSigner{
 			Key: []byte(secret),
 		}
@@ -154,6 +160,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		)
 
 		b := binance.NewBinance(binanceService)
+		client := binance2.NewClient(key, secret)
 
 		payload, err := fetchBalances(b, existing, verbose)
 		if err != nil {
@@ -164,16 +171,8 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 			return
 		}
 
-		file, err := json.Marshal(payload)
-		if err != nil {
-			response := map[string]string{"error": err.Error()}
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(response)
-			return
-		}
 		// save payload
-		err = ioutil.WriteFile(path, file, 0644)
+		err = persist(payload.Assets, payload.Kucoin, path, 0, verbose)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
 			fmt.Println(err)
@@ -182,19 +181,48 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 			return
 		}
 
-		go func(ctx context.Context, path string) {
+		go func(ctx context.Context, client *binance2.Client, path string) {
 			start := time.Now().Unix()
-			client := binance2.NewClient(key, secret)
+			if kkey != "" && ksecret != "" && kpass != "" {
+				// TODO: async
+				// TODO: separate function
+				ks := kucoin.NewApiService(
+					kucoin.ApiBaseURIOption("https://api.kucoin.com"),
+					kucoin.ApiKeyOption(kkey),
+					kucoin.ApiSecretOption(ksecret),
+					kucoin.ApiPassPhraseOption(kpass),
+					kucoin.ApiKeyVersionOption(kucoin.ApiKeyVersionV2),
+				)
+				var klast int64 = 0
+				for _, v := range existing.Kucoin {
+					for _, vv := range v.Pairs {
+						t := vv.LatestTrade.Time.UnixMilli()
+						if t > klast {
+							klast = t
+						}
+					}
+				}
+
+				kt, err := fetchKucoinTrades(ks, klast+1, time.Now().UnixMilli(), 1, existing.Kucoin, verbose)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				payload.Kucoin = kt
+				persist(payload.Assets, kt, path, 0, verbose)
+			}
+
 			_, err := update(ctx, b, client, payload, path, verbose)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			persist(payload.Assets, path, 0, verbose)
+			persist(payload.Assets, payload.Kucoin, path, 0, verbose)
+
 			if verbose {
 				fmt.Printf("%s done after %d seconds\n", r.RemoteAddr, time.Now().Unix()-start)
 			}
-		}(r.Context(), path)
+		}(r.Context(), client, path)
 		http.ServeFile(w, r, path)
 	}
 }
@@ -213,6 +241,62 @@ func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response)
 	}
+}
+
+func fetchLocked(ctx context.Context, client binance2.Client) error {
+	r2, err := client.NewGetSavingsFixedAndActivityPositionService().
+		Asset("LUNA").
+		ProjectId("CLUNA90DAYSS001").
+		Status("HOLDING").
+		Do(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range r2 {
+		fmt.Println(p)
+	}
+	res, err := client.NewGetLendingPurchaseRecordService().
+		LendingType("CUSTOMIZED_FIXED").
+		Size(100).Current(1).
+		StartTime(time.Now().Unix() - 2592000).
+		EndTime(time.Now().Unix() - 3600).
+		Do(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range res {
+		fmt.Println(p.Asset, p.Amount)
+	}
+	// return
+	res2, err := client.NewListSavingsFixedAndActivityProductsService().
+		// Asset("LUNA").
+		Type("CUSTOMIZED_FIXED").Status("ALL").
+		Current(1).
+		Size(100).
+		Do(ctx)
+	if err != nil {
+		return err
+	}
+	for _, s := range res2 {
+		// if !strings.Contains(s.Asset, "LUNA") {
+		// 	fmt.Println(s.ProjectId)
+		// 	continue
+		// }
+		fmt.Println(s.Asset, s.ProjectId)
+		r2, err := client.NewGetSavingsFixedAndActivityPositionService().
+			Status("HOLDING").
+			// Asset(s.Asset).ProjectId(s.ProjectId).
+			// Asset("LUNA").ProjectId("Luna*30").
+			Asset("LUNA").ProjectId("CLUNA30DAYSS001").
+			Do(ctx)
+		if err != nil {
+			return err
+		}
+		for _, p := range r2 {
+			fmt.Println(p)
+		}
+	}
+	return nil
 }
 
 func fetchDistributions(ctx context.Context, client *binance2.Client, symbol string, total float64, start int64, verbose bool) (int64, float64, error) {
@@ -272,7 +356,7 @@ func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, 
 		Timestamp:  time.Now(),
 	})
 	if err != nil {
-		return Payload{time.Now(), existing.Assets}, err
+		return Payload{time.Now(), existing.Assets, nil}, err
 	}
 
 	// zero out balances
@@ -306,7 +390,7 @@ func fetchBalances(b binance.Binance, existing Payload, verbose bool) (Payload, 
 		assets[symbol] = new
 	}
 
-	return Payload{time.Now(), assets}, nil
+	return Payload{time.Now(), assets, nil}, nil
 }
 
 func fetchPairs() (PairsResponse, error) {
@@ -368,7 +452,7 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 						go func(bals map[string]Asset, path string, total int, verbose bool) {
 							// ok to ignore persist error. It will be retried
 							// persist despite nothing new to update last_update
-							persist(bals, path, total, verbose)
+							persist(bals, payload.Kucoin, path, total, verbose)
 
 						}(bals, path, total, verbose)
 						if verbose {
@@ -426,12 +510,12 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
 	}
 	// persist despite nothing new to update last_update
-	err = persist(bals, path, total, verbose)
+	err = persist(bals, payload.Kucoin, path, total, verbose)
 	return bals, err
 }
 
-func persist(assets map[string]Asset, path string, total int, verbose bool) error {
-	payload := Payload{time.Now(), assets}
+func persist(assets, kucoin map[string]Asset, path string, total int, verbose bool) error {
+	payload := Payload{time.Now(), assets, kucoin}
 	file, err := json.Marshal(payload)
 	if err != nil {
 		err = errors.Wrap(err, "encoding")
@@ -452,9 +536,112 @@ func persist(assets map[string]Asset, path string, total int, verbose bool) erro
 func loadExisting(path string) Payload {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		return Payload{time.Time{}, map[string]Asset{}}
+		return Payload{time.Time{}, map[string]Asset{}, map[string]Asset{}}
 	}
 	var payload Payload
 	json.Unmarshal(content, &payload)
 	return payload
+}
+
+func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets map[string]Asset, verbose bool) (map[string]Asset, error) {
+	if verbose {
+		fmt.Printf("fetching more kucoin trades from %d page %d\n", startAt, page)
+	}
+	params := map[string]string{}
+	if startAt > 1 {
+		params["startAt"] = strconv.FormatInt(startAt, 10)
+	}
+	params["endAt"] = strconv.FormatInt(endAt, 10)
+	params["status"] = "done"
+	rsp, err := s.Orders(params, &kucoin.PaginationParam{CurrentPage: page, PageSize: 500})
+	if err != nil {
+		return nil, err
+	}
+
+	os := kucoin.OrdersModel{}
+	pd, err := rsp.ReadPaginationData(&os)
+	if err != nil {
+		return nil, err
+	}
+	newAssets := assets
+	if newAssets == nil {
+		newAssets = map[string]Asset{}
+	}
+	for _, o := range os {
+		filled := !o.IsActive && !o.CancelExist
+		if !filled {
+			continue
+		}
+		qty, err := strconv.ParseFloat(o.DealSize, 64)
+		if err != nil {
+			return nil, err
+		}
+		price, err := strconv.ParseFloat(o.Price, 64)
+		if err != nil {
+			return nil, err
+		}
+		fee, err := strconv.ParseFloat(o.Fee, 64)
+		if err != nil {
+			return nil, err
+		}
+		symbols := strings.Split(o.Symbol, "-")
+		asset := Asset{}
+		asset.Pairs = map[string]Pair{}
+		if value, ok := assets[symbols[0]]; ok {
+			asset = value
+		}
+		pair := Pair{}
+		pair.Fees = map[string]float64{}
+		pair.Fees[o.FeeCurrency] = fee
+		if value, ok := asset.Pairs[symbols[1]]; ok {
+			pair = value
+		}
+		if _, ok := pair.Fees[o.FeeCurrency]; ok {
+			pair.Fees[o.FeeCurrency] += fee
+		}
+		if o.Side == "buy" {
+			pair.BuyQty += qty
+			pair.Cost += price
+		}
+		if o.Side == "sell" {
+			pair.SellQty += qty
+			pair.Revenue += price
+		}
+		t := time.UnixMilli(o.CreatedAt)
+		trade := binance.Trade{}
+		trade.Time = t
+		trade.IsBuyer = o.Side == "buy"
+		trade.Price = price
+		trade.Qty = qty
+		if pair.LatestTrade == nil || pair.LatestTrade.Time.Unix() < t.Unix() {
+			pair.LatestTrade = &trade
+		}
+		if pair.EarliestTrade == nil || pair.EarliestTrade.Time.Unix() > t.Unix() {
+			pair.EarliestTrade = &trade
+		}
+
+		pair.Fees[o.FeeCurrency] += fee
+		asset.Pairs[symbols[1]] = pair
+		newAssets[symbols[0]] = asset
+
+		// fmt.Println(o)
+		// fmt.Printf("%s %.6f %s for %.2f\n", o.Side, qty, o.Symbol, price)
+	}
+	if pd.TotalPage > pd.CurrentPage {
+		return fetchKucoinTrades(s, startAt, time.Now().UnixMilli(), page+1, newAssets, verbose)
+	}
+	// fetch older than earliest
+	earliest := time.Now().UnixMilli()
+	if len(os) > 0 {
+		for _, v := range newAssets {
+			for _, vv := range v.Pairs {
+				e := vv.EarliestTrade.Time.UnixMilli()
+				if e < earliest {
+					earliest = e
+				}
+			}
+		}
+		return fetchKucoinTrades(s, 0, earliest-1, 1, newAssets, verbose)
+	}
+	return newAssets, nil
 }

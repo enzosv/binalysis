@@ -13,6 +13,7 @@ import (
 type Payload struct {
 	LastUpdate time.Time        `json:"last_update"`
 	Binance    map[string]Asset `json:"binance"`
+	Kucoin     map[string]Asset `json:"kucoin"`
 }
 type Asset struct {
 	Balance           float64         `json:"balance"`
@@ -367,8 +368,22 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 				clean.Cost += fee * fcoin.USD
 				clean.TotalFee += fee * fcoin.USD
 			}
-
-			// combine
+			// TODO: Better merge of kucoin and binance
+			if ka, ok := payload.Kucoin[k]; ok {
+				if pk, y := ka.Pairs[kk]; y {
+					clean.BuyQty += pk.BuyQty
+					clean.SellQty += pk.SellQty
+					if _, yy := stablecoins[symbol]; !yy {
+						coin := coins[symbol]
+						pk.Cost *= coin.USD
+						pk.Revenue *= coin.USD
+						pk.EarliestTrade.Price *= coin.USD
+						pk.LatestTrade.Price *= coin.USD
+					}
+					clean.Cost += pk.Cost
+					clean.Revenue += pk.Revenue
+				}
+			}
 			clean.BuyQty += new.BuyQty
 			clean.Cost += new.Cost
 			clean.SellQty += new.SellQty
@@ -396,5 +411,6 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
 		cleaned = append(cleaned, clean)
 	}
+
 	return cleaned
 }
