@@ -601,11 +601,11 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		}
 		if o.Side == "buy" {
 			pair.BuyQty += qty
-			pair.Cost += price
+			pair.Cost += price * qty
 		}
 		if o.Side == "sell" {
 			pair.SellQty += qty
-			pair.Revenue += price
+			pair.Revenue += price * qty
 		}
 		t := time.UnixMilli(o.CreatedAt)
 		trade := binance.Trade{}
