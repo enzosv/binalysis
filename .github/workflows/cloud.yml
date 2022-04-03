@@ -41,6 +41,6 @@ jobs:
           port: 22
           envs: TARGET
           script: |
-            /usr/sbin/lsof -i:8080 -t | xargs kill -9
+            lsof -i:8080 -t | xargs kill -9
             cd $TARGET
             nohup ./binalysis -p 8080 > nohup.out 2> nohup.err < /dev/null &
