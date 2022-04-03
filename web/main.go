@@ -368,27 +368,63 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 				clean.Cost += fee * fcoin.USD
 				clean.TotalFee += fee * fcoin.USD
 			}
-			// TODO: Better merge of kucoin and binance
-			if ka, ok := payload.Kucoin[k]; ok {
-				if pk, y := ka.Pairs[kk]; y {
-					clean.BuyQty += pk.BuyQty
-					clean.SellQty += pk.SellQty
-					if _, yy := stablecoins[symbol]; !yy {
-						coin := coins[symbol]
-						pk.Cost *= coin.USD
-						pk.Revenue *= coin.USD
-						pk.EarliestTrade.Price *= coin.USD
-						pk.LatestTrade.Price *= coin.USD
-					}
-					clean.Cost += pk.Cost
-					clean.Revenue += pk.Revenue
-					if clean.EarliestTrade.Time.Unix() > pk.EarliestTrade.Time.Unix() {
-						clean.EarliestTrade = *pk.EarliestTrade
-					}
-					if clean.LatestTrade.Time.Unix() < pk.LatestTrade.Time.Unix() {
-						clean.LatestTrade = *pk.LatestTrade
-					}
+			clean.BuyQty += new.BuyQty
+			clean.Cost += new.Cost
+			clean.SellQty += new.SellQty
+			clean.Revenue += new.Revenue
+			if clean.EarliestTrade.Time.Unix() > new.EarliestTrade.Time.Unix() {
+				clean.EarliestTrade = *new.EarliestTrade
+			}
+			if clean.LatestTrade.Time.Unix() < new.LatestTrade.Time.Unix() {
+				clean.LatestTrade = *new.LatestTrade
+			}
+		}
+		cleaned = append(cleaned, clean)
+	}
+	for k, v := range payload.Kucoin {
+		if len(v.Pairs) < 1 {
+			continue
+		}
+		if _, ok := coins[strings.ToLower(k)]; !ok {
+			continue
+		}
+		clean := Clean{}
+		clean.Symbol = k
+		clean.Coin = coins[strings.ToLower(k)]
+		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
+		clean.LatestTrade.Time = time.Unix(0, 0)
+		for _, c := range cleaned {
+			if c.Symbol == k {
+				clean = c
+				break
+			}
+		}
+		clean.BuyQty += v.DistributionTotal
+		clean.TotalDistibutions += v.DistributionTotal * clean.Coin.USD
+		clean.Balance += v.Balance
+
+		for kk, vv := range v.Pairs {
+			new := vv
+			symbol := strings.ToLower(kk)
+			if _, ok := stablecoins[symbol]; !ok {
+				// convert to usd if not already
+				coin := coins[symbol]
+				if clean.Coin.USD == 0 {
+					clean.Coin = coin
+					clean.Balance *= coin.USD
+					fmt.Println(symbol, coin)
 				}
+
+				new.Cost *= coin.USD
+				new.Revenue *= coin.USD
+				new.EarliestTrade.Price *= coin.USD
+				new.LatestTrade.Price *= coin.USD
+			}
+			for fs, fee := range new.Fees {
+				// convert to usd
+				fcoin := coins[strings.ToLower(fs)]
+				clean.Cost += fee * fcoin.USD
+				clean.TotalFee += fee * fcoin.USD
 			}
 			clean.BuyQty += new.BuyQty
 			clean.Cost += new.Cost
@@ -402,6 +438,9 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 			}
 		}
 
+		cleaned = append(cleaned, clean)
+	}
+	for _, clean := range cleaned {
 		if clean.BuyQty != 0 {
 			clean.AverageBuy = clean.Cost / clean.BuyQty
 			clean.Dif = clean.Coin.USD - clean.AverageBuy
@@ -413,9 +452,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		if clean.SellQty != 0 {
 			clean.AverageSell = clean.Revenue / clean.SellQty
 		}
-
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
-		cleaned = append(cleaned, clean)
 	}
 
 	return cleaned
