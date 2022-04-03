@@ -240,7 +240,7 @@ func fetchCoinList(client *http.Client) ([]Coin, error) {
 }
 
 func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[string]Coin, error) {
-	var coinids []string
+	coinids := map[string]bool{}
 	coins := map[string]Coin{}
 	for symbol, asset := range payload.Binance {
 		if len(asset.Pairs) < 1 {
@@ -249,17 +249,13 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 		s := strings.ToLower(symbol)
 		for _, coin := range coinlist {
 			token := strings.ToLower(coin.Symbol)
-			// ignore if duplicate
-			if _, ok := coins[token]; ok {
-				continue
-			}
 			if strings.Contains(strings.ToLower(coin.ID), "wormhole") {
 				// it's never this
 				continue
 			}
 			// TODO: handle IOTA in binance vs miota in coingecko
 			if s == token {
-				coinids = append(coinids, coin.ID)
+				coinids[coin.ID] = true
 				coins[token] = Coin{}
 				continue
 			}
@@ -267,7 +263,7 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 				if token != strings.ToLower(k) {
 					continue
 				}
-				coinids = append(coinids, coin.ID)
+				coinids[coin.ID] = true
 				coins[token] = Coin{}
 			}
 		}
@@ -279,17 +275,13 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 		s := strings.ToLower(symbol)
 		for _, coin := range coinlist {
 			token := strings.ToLower(coin.Symbol)
-			// ignore if duplicate
-			if _, ok := coins[token]; ok {
-				continue
-			}
 			if strings.Contains(strings.ToLower(coin.ID), "wormhole") {
 				// it's never this
 				continue
 			}
 			// TODO: handle IOTA in binance vs miota in coingecko
 			if s == token {
-				coinids = append(coinids, coin.ID)
+				coinids[coin.ID] = true
 				coins[token] = Coin{}
 				continue
 			}
@@ -297,7 +289,7 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 				if token != strings.ToLower(k) {
 					continue
 				}
-				coinids = append(coinids, coin.ID)
+				coinids[coin.ID] = true
 				coins[token] = Coin{}
 			}
 		}
@@ -308,7 +300,11 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 		return nil, err
 	}
 	q := req.URL.Query()
-	q.Add("ids", strings.Join(coinids, ","))
+	var ids []string
+	for c := range coinids {
+		ids = append(ids, c)
+	}
+	q.Add("ids", strings.Join(ids, ","))
 	q.Add("vs_currencies", "usd")
 	q.Add("include_24hr_change", "true")
 	q.Add("include_market_cap", "true")
