@@ -243,61 +243,61 @@ func DeleteHandler(store string, verbose bool) http.HandlerFunc {
 	}
 }
 
-func fetchLocked(ctx context.Context, client binance2.Client) error {
-	r2, err := client.NewGetSavingsFixedAndActivityPositionService().
-		Asset("LUNA").
-		ProjectId("CLUNA90DAYSS001").
-		Status("HOLDING").
-		Do(ctx)
-	if err != nil {
-		return err
-	}
-	for _, p := range r2 {
-		fmt.Println(p)
-	}
-	res, err := client.NewGetLendingPurchaseRecordService().
-		LendingType("CUSTOMIZED_FIXED").
-		Size(100).Current(1).
-		StartTime(time.Now().Unix() - 2592000).
-		EndTime(time.Now().Unix() - 3600).
-		Do(ctx)
-	if err != nil {
-		return err
-	}
-	for _, p := range res {
-		fmt.Println(p.Asset, p.Amount)
-	}
-	// return
-	res2, err := client.NewListSavingsFixedAndActivityProductsService().
-		// Asset("LUNA").
-		Type("CUSTOMIZED_FIXED").Status("ALL").
-		Current(1).
-		Size(100).
-		Do(ctx)
-	if err != nil {
-		return err
-	}
-	for _, s := range res2 {
-		// if !strings.Contains(s.Asset, "LUNA") {
-		// 	fmt.Println(s.ProjectId)
-		// 	continue
-		// }
-		fmt.Println(s.Asset, s.ProjectId)
-		r2, err := client.NewGetSavingsFixedAndActivityPositionService().
-			Status("HOLDING").
-			// Asset(s.Asset).ProjectId(s.ProjectId).
-			// Asset("LUNA").ProjectId("Luna*30").
-			Asset("LUNA").ProjectId("CLUNA30DAYSS001").
-			Do(ctx)
-		if err != nil {
-			return err
-		}
-		for _, p := range r2 {
-			fmt.Println(p)
-		}
-	}
-	return nil
-}
+// func fetchLocked(ctx context.Context, client binance2.Client) error {
+// 	r2, err := client.NewGetSavingsFixedAndActivityPositionService().
+// 		Asset("LUNA").
+// 		ProjectId("CLUNA90DAYSS001").
+// 		Status("HOLDING").
+// 		Do(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	for _, p := range r2 {
+// 		fmt.Println(p)
+// 	}
+// 	res, err := client.NewGetLendingPurchaseRecordService().
+// 		LendingType("CUSTOMIZED_FIXED").
+// 		Size(100).Current(1).
+// 		StartTime(time.Now().Unix() - 2592000).
+// 		EndTime(time.Now().Unix() - 3600).
+// 		Do(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	for _, p := range res {
+// 		fmt.Println(p.Asset, p.Amount)
+// 	}
+// 	// return
+// 	res2, err := client.NewListSavingsFixedAndActivityProductsService().
+// 		// Asset("LUNA").
+// 		Type("CUSTOMIZED_FIXED").Status("ALL").
+// 		Current(1).
+// 		Size(100).
+// 		Do(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	for _, s := range res2 {
+// 		// if !strings.Contains(s.Asset, "LUNA") {
+// 		// 	fmt.Println(s.ProjectId)
+// 		// 	continue
+// 		// }
+// 		fmt.Println(s.Asset, s.ProjectId)
+// 		r2, err := client.NewGetSavingsFixedAndActivityPositionService().
+// 			Status("HOLDING").
+// 			// Asset(s.Asset).ProjectId(s.ProjectId).
+// 			// Asset("LUNA").ProjectId("Luna*30").
+// 			Asset("LUNA").ProjectId("CLUNA30DAYSS001").
+// 			Do(ctx)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		for _, p := range r2 {
+// 			fmt.Println(p)
+// 		}
+// 	}
+// 	return nil
+// }
 
 func fetchDistributions(ctx context.Context, client *binance2.Client, symbol string, total float64, start int64, verbose bool) (int64, float64, error) {
 	request := client.NewAssetDividendService().Asset(symbol).Limit(500)
