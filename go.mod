@@ -1,6 +1,6 @@
 module github.com/enzosv/binalysis
 
-go 1.16
+go 1.18
 
 require (
 	github.com/Kucoin/kucoin-go-sdk v1.2.12 // indirect
