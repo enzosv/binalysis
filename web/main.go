@@ -248,8 +248,41 @@ func matchCoins(client *http.Client, payload Payload, coinlist []Coin) (map[stri
 		}
 		s := strings.ToLower(symbol)
 		for _, coin := range coinlist {
-			// ignore if duplicate. is that even possible?
 			token := strings.ToLower(coin.Symbol)
+			// ignore if duplicate
+			if _, ok := coins[token]; ok {
+				continue
+			}
+			if strings.Contains(strings.ToLower(coin.ID), "wormhole") {
+				// it's never this
+				continue
+			}
+			// TODO: handle IOTA in binance vs miota in coingecko
+			if s == token {
+				coinids = append(coinids, coin.ID)
+				coins[token] = Coin{}
+				continue
+			}
+			for k := range asset.Pairs {
+				if token != strings.ToLower(k) {
+					continue
+				}
+				coinids = append(coinids, coin.ID)
+				coins[token] = Coin{}
+			}
+		}
+	}
+	for symbol, asset := range payload.Kucoin {
+		if len(asset.Pairs) < 1 {
+			continue
+		}
+		s := strings.ToLower(symbol)
+		for _, coin := range coinlist {
+			token := strings.ToLower(coin.Symbol)
+			// ignore if duplicate
+			if _, ok := coins[token]; ok {
+				continue
+			}
 			if strings.Contains(strings.ToLower(coin.ID), "wormhole") {
 				// it's never this
 				continue
@@ -446,7 +479,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		}
 
 	}
-	for _, clean := range cleaned {
+	for i, clean := range cleaned {
 		if clean.BuyQty != 0 {
 			clean.AverageBuy = clean.Cost / clean.BuyQty
 			clean.Dif = clean.Coin.USD - clean.AverageBuy
@@ -459,6 +492,7 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 			clean.AverageSell = clean.Revenue / clean.SellQty
 		}
 		clean.Profit = clean.Revenue - clean.Cost + clean.Balance*clean.Coin.USD
+		cleaned[i] = clean
 	}
 
 	return cleaned
