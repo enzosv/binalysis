@@ -135,7 +135,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		key := r.Header.Get("X-API-Key")
 		path := fmt.Sprintf("%s/%s.json", store, key)
 		existing := loadExisting(path)
-		nextAvailable := existing.LastUpdate.Add(time.Minute * 1)
+		nextAvailable := existing.LastUpdate.Add(time.Minute * 5)
 		if time.Now().Unix() < nextAvailable.Unix() {
 			response := map[string]string{"error": fmt.Sprintf("Updated recently. Try again at %s", nextAvailable.Add(time.Minute).Format("3:04PM"))}
 			w.WriteHeader(http.StatusTooManyRequests)
@@ -623,9 +623,6 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		pair.Fees[o.FeeCurrency] += fee
 		asset.Pairs[symbols[1]] = pair
 		newAssets[symbols[0]] = asset
-
-		// fmt.Println(o)
-		// fmt.Printf("%s %.6f %s for %.2f\n", o.Side, qty, o.Symbol, price)
 	}
 	if pd.TotalPage > pd.CurrentPage {
 		return fetchKucoinTrades(s, startAt, time.Now().UnixMilli(), page+1, newAssets, verbose)
