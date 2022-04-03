@@ -393,9 +393,11 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 		clean.Coin = coins[strings.ToLower(k)]
 		clean.EarliestTrade.Time = time.Unix(9223372036854775807, 0)
 		clean.LatestTrade.Time = time.Unix(0, 0)
-		for _, c := range cleaned {
+		var existingIndex *int
+		for i, c := range cleaned {
 			if c.Symbol == k {
 				clean = c
+				existingIndex = &i
 				break
 			}
 		}
@@ -437,8 +439,12 @@ func usdOnly(payload Payload, coins map[string]Coin) []Clean {
 				clean.LatestTrade = *new.LatestTrade
 			}
 		}
+		if existingIndex != nil {
+			cleaned[*existingIndex] = clean
+		} else {
+			cleaned = append(cleaned, clean)
+		}
 
-		cleaned = append(cleaned, clean)
 	}
 	for _, clean := range cleaned {
 		if clean.BuyQty != 0 {
