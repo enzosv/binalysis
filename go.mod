@@ -3,6 +3,7 @@ module github.com/enzosv/binalysis
 go 1.16
 
 require (
+	github.com/Kucoin/kucoin-go-sdk v1.2.12 // indirect
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/adshao/go-binance/v2 v2.3.5
 	github.com/binance-exchange/go-binance v0.0.0-20180518133450-1af034307da5
@@ -10,3 +11,5 @@ require (
 	github.com/gorilla/mux v1.6.2
 	github.com/pkg/errors v0.9.1
 )
+
+// replace github.com/adshao/go-binance/v2 => github.com/enzosv/go-binance/v2 latest
