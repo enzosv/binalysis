@@ -549,6 +549,26 @@ func loadExisting(path string) Payload {
 	return payload
 }
 
+func getPrice(o *kucoin.OrderModel, qty float64) (float64, error) {
+	price := 0.0
+	if o.Price == "0" {
+		spent, err := strconv.ParseFloat(o.DealFunds, 64)
+		if err != nil {
+			return 0, err
+		}
+		price = spent / qty
+		if price == 0 {
+			return 0, fmt.Errorf("Unnable to get price for order %s", o.Id)
+		}
+		return price, nil
+	}
+	price, err := strconv.ParseFloat(o.Price, 64)
+	if err != nil {
+		return 0, err
+	}
+	return price, nil
+}
+
 func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets map[string]Asset, verbose bool) (map[string]Asset, error) {
 	if verbose {
 		fmt.Printf("fetching more kucoin trades from %d page %d\n", startAt, page)
@@ -581,7 +601,6 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		}
 		filled := !o.IsActive && !o.CancelExist
 		if !filled {
-			fmt.Println("not filled", o.Symbol)
 			continue
 		}
 		qty, err := strconv.ParseFloat(o.DealSize, 64)
@@ -591,22 +610,9 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		if qty <= 0 {
 			continue
 		}
-		price := 0.0
-		if o.Price == "0" {
-			spent, err := strconv.ParseFloat(o.DealFunds, 64)
-			if err != nil {
-				return nil, err
-			}
-			price = spent / qty
-			if price == 0 {
-				fmt.Println("0 price", o.Symbol)
-				continue
-			}
-		} else {
-			price, err = strconv.ParseFloat(o.Price, 64)
-			if err != nil {
-				return nil, err
-			}
+		price, err := getPrice(o, qty)
+		if err != nil {
+			return nil, err
 		}
 		fee, err := strconv.ParseFloat(o.Fee, 64)
 		if err != nil {
