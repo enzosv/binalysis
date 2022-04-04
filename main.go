@@ -595,9 +595,8 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 	}
 	earliest := endAt
 	for _, o := range os {
-		e := o.CreatedAt
-		if e < earliest {
-			earliest = e
+		if o.CreatedAt < earliest {
+			earliest = o.CreatedAt
 		}
 		filled := !o.IsActive && !o.CancelExist
 		if !filled {
@@ -653,10 +652,10 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		trade.Qty = qty
 		trade.Commission = fee
 		trade.CommissionAsset = o.FeeCurrency
-		if pair.LatestTrade == nil || pair.LatestTrade.Time.Unix() < t.Unix() {
+		if pair.LatestTrade == nil || pair.LatestTrade.Time.UnixMilli() < o.CreatedAt {
 			pair.LatestTrade = &trade
 		}
-		if pair.EarliestTrade == nil || pair.EarliestTrade.Time.Unix() > t.Unix() {
+		if pair.EarliestTrade == nil || pair.EarliestTrade.Time.UnixMilli() > o.CreatedAt {
 			pair.EarliestTrade = &trade
 		}
 
@@ -664,8 +663,8 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		asset.Pairs[symbols[1]] = pair
 		newAssets[symbols[0]] = asset
 	}
-	if pd.TotalPage > pd.CurrentPage {
-		return fetchKucoinTrades(s, startAt, time.Now().UnixMilli(), page+1, newAssets, verbose)
+	if pd.TotalPage > page {
+		return fetchKucoinTrades(s, startAt, endAt, page+1, newAssets, verbose)
 	}
 	// fetch older than earliest
 	if len(os) > 0 {
