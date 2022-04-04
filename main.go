@@ -53,6 +53,22 @@ type Payload struct {
 	Kucoin     map[string]Asset `json:"kucoin"`
 }
 
+func (p Payload) persist(path string) error {
+	p.LastUpdate = time.Now()
+	file, err := json.Marshal(p)
+	if err != nil {
+		err = errors.Wrap(err, "encoding")
+		return err
+	}
+	// TODO: encrypt
+	err = ioutil.WriteFile(path, file, 0644)
+	if err != nil {
+		err = errors.Wrap(err, "persisting")
+		return err
+	}
+	return nil
+}
+
 func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 	pair := Pair{}
 	if value, ok := a.Pairs[selling]; ok {
@@ -172,7 +188,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		}
 
 		// save payload
-		err = persist(payload.Assets, payload.Kucoin, path, 0, verbose)
+		payload.persist(path)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
 			fmt.Println(err)
@@ -209,7 +225,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 					return
 				}
 				payload.Kucoin = kt
-				persist(payload.Assets, kt, path, 0, verbose)
+				payload.persist(path)
 			}
 
 			_, err := update(ctx, b, client, payload, path, verbose)
@@ -217,7 +233,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 				fmt.Println(err)
 				return
 			}
-			persist(payload.Assets, payload.Kucoin, path, 0, verbose)
+			payload.persist(path)
 
 			if verbose {
 				fmt.Printf("%s done after %d seconds\n", r.RemoteAddr, time.Now().Unix()-start)
@@ -418,7 +434,7 @@ func fetchPairs() (PairsResponse, error) {
 }
 
 func update(ctx context.Context, b binance.Binance, client *binance2.Client, payload Payload, path string, verbose bool) (map[string]Asset, error) {
-
+	// persists while waiting
 	pairs, err := fetchPairs()
 	if err != nil {
 		return nil, err
@@ -458,8 +474,14 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 						go func(bals map[string]Asset, path string, total int, verbose bool) {
 							// ok to ignore persist error. It will be retried
 							// persist despite nothing new to update last_update
-							persist(bals, payload.Kucoin, path, total, verbose)
-
+							p := Payload{time.Now(), bals, payload.Kucoin}
+							err := p.persist(path)
+							if err != nil {
+								return
+							}
+							if verbose {
+								fmt.Printf("%d trades saved\n", total)
+							}
 						}(bals, path, total, verbose)
 						if verbose {
 							fmt.Printf("[%s] Waiting for limit to refresh trades\n", product)
@@ -515,28 +537,7 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 	if verbose {
 		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
 	}
-	// persist despite nothing new to update last_update
-	err = persist(bals, payload.Kucoin, path, total, verbose)
 	return bals, err
-}
-
-func persist(assets, kucoin map[string]Asset, path string, total int, verbose bool) error {
-	payload := Payload{time.Now(), assets, kucoin}
-	file, err := json.Marshal(payload)
-	if err != nil {
-		err = errors.Wrap(err, "encoding")
-		return err
-	}
-	// TODO: encrypt
-	err = ioutil.WriteFile(path, file, 0644)
-	if err != nil {
-		err = errors.Wrap(err, "persisting")
-		return err
-	}
-	if verbose {
-		fmt.Printf("%d trades saved\n", total)
-	}
-	return nil
 }
 
 func loadExisting(path string) Payload {
