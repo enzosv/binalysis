@@ -593,7 +593,7 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 	if newAssets == nil {
 		newAssets = map[string]Asset{}
 	}
-	earliest := time.Now().UnixMilli()
+	earliest := endAt
 	for _, o := range os {
 		e := o.CreatedAt
 		if e < earliest {
@@ -669,6 +669,14 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 	}
 	// fetch older than earliest
 	if len(os) > 0 {
+		for _, a := range assets {
+			for _, p := range a.Pairs {
+				t := p.EarliestTrade.Time.UnixMilli()
+				if t < earliest {
+					earliest = t
+				}
+			}
+		}
 		return fetchKucoinTrades(s, 0, earliest-1, 1, newAssets, verbose)
 	}
 	return newAssets, nil
