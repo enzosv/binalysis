@@ -578,8 +578,9 @@ func fetchKucoinBalance(s *kucoin.ApiService, assets map[string]Asset) (map[stri
 			return new, err
 		}
 		if value, ok := assets[a.Currency]; ok {
-			value.Balance += bal
+			value.Balance = bal
 			new[a.Currency] = value
+			continue
 		}
 		n := Asset{}
 		n.Balance = bal
