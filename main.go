@@ -202,8 +202,12 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 						}
 					}
 				}
-
-				kt, err := fetchKucoinTrades(ks, klast+1, time.Now().UnixMilli(), 1, existing.Kucoin, verbose)
+				kb, err := fetchKucoinBalance(ks, existing.Kucoin)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				kt, err := fetchKucoinTrades(ks, klast+1, time.Now().UnixMilli(), 1, kb, verbose)
 				if err != nil {
 					fmt.Println(err)
 					return
@@ -546,7 +550,41 @@ func loadExisting(path string) Payload {
 	}
 	var payload Payload
 	json.Unmarshal(content, &payload)
+	if payload.Assets == nil {
+		payload.Assets = map[string]Asset{}
+	}
+	if payload.Kucoin == nil {
+		payload.Kucoin = map[string]Asset{}
+	}
 	return payload
+}
+
+func fetchKucoinBalance(s *kucoin.ApiService, assets map[string]Asset) (map[string]Asset, error) {
+	rsp, err := s.Accounts("", "")
+	if err != nil {
+		return assets, err
+	}
+
+	as := kucoin.AccountsModel{}
+	if err := rsp.ReadData(&as); err != nil {
+		return assets, err
+	}
+
+	new := assets
+	for _, a := range as {
+		bal, err := strconv.ParseFloat(a.Balance, 64)
+		if err != nil {
+			return new, err
+		}
+		if value, ok := assets[a.Currency]; ok {
+			value.Balance += bal
+			new[a.Currency] = value
+		}
+		n := Asset{}
+		n.Balance = bal
+		new[a.Currency] = n
+	}
+	return new, nil
 }
 
 func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets map[string]Asset, verbose bool) (map[string]Asset, error) {
