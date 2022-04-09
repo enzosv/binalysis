@@ -53,6 +53,22 @@ type Payload struct {
 	Kucoin     map[string]Asset `json:"kucoin"`
 }
 
+func (p Payload) persist(path string) error {
+	p.LastUpdate = time.Now()
+	file, err := json.Marshal(p)
+	if err != nil {
+		err = errors.Wrap(err, "encoding")
+		return err
+	}
+	// TODO: encrypt
+	err = ioutil.WriteFile(path, file, 0644)
+	if err != nil {
+		err = errors.Wrap(err, "persisting")
+		return err
+	}
+	return nil
+}
+
 func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 	pair := Pair{}
 	if value, ok := a.Pairs[selling]; ok {
@@ -172,7 +188,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 		}
 
 		// save payload
-		err = persist(payload.Assets, payload.Kucoin, path, 0, verbose)
+		payload.persist(path)
 		if err != nil {
 			response := map[string]string{"error": err.Error()}
 			fmt.Println(err)
@@ -213,7 +229,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 					return
 				}
 				payload.Kucoin = kt
-				persist(payload.Assets, kt, path, 0, verbose)
+				payload.persist(path)
 			}
 
 			_, err := update(ctx, b, client, payload, path, verbose)
@@ -221,7 +237,7 @@ func UpdateHandler(store string, verbose bool) http.HandlerFunc {
 				fmt.Println(err)
 				return
 			}
-			persist(payload.Assets, payload.Kucoin, path, 0, verbose)
+			payload.persist(path)
 
 			if verbose {
 				fmt.Printf("%s done after %d seconds\n", r.RemoteAddr, time.Now().Unix()-start)
@@ -422,7 +438,7 @@ func fetchPairs() (PairsResponse, error) {
 }
 
 func update(ctx context.Context, b binance.Binance, client *binance2.Client, payload Payload, path string, verbose bool) (map[string]Asset, error) {
-
+	// persists while waiting
 	pairs, err := fetchPairs()
 	if err != nil {
 		return nil, err
@@ -462,8 +478,14 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 						go func(bals map[string]Asset, path string, total int, verbose bool) {
 							// ok to ignore persist error. It will be retried
 							// persist despite nothing new to update last_update
-							persist(bals, payload.Kucoin, path, total, verbose)
-
+							p := Payload{time.Now(), bals, payload.Kucoin}
+							err := p.persist(path)
+							if err != nil {
+								return
+							}
+							if verbose {
+								fmt.Printf("%d trades saved\n", total)
+							}
 						}(bals, path, total, verbose)
 						if verbose {
 							fmt.Printf("[%s] Waiting for limit to refresh trades\n", product)
@@ -519,28 +541,7 @@ func update(ctx context.Context, b binance.Binance, client *binance2.Client, pay
 	if verbose {
 		fmt.Printf("Fetched %d new trades since %s\n", total, payload.LastUpdate.Format("2006-01-02 3:04PM"))
 	}
-	// persist despite nothing new to update last_update
-	err = persist(bals, payload.Kucoin, path, total, verbose)
 	return bals, err
-}
-
-func persist(assets, kucoin map[string]Asset, path string, total int, verbose bool) error {
-	payload := Payload{time.Now(), assets, kucoin}
-	file, err := json.Marshal(payload)
-	if err != nil {
-		err = errors.Wrap(err, "encoding")
-		return err
-	}
-	// TODO: encrypt
-	err = ioutil.WriteFile(path, file, 0644)
-	if err != nil {
-		err = errors.Wrap(err, "persisting")
-		return err
-	}
-	if verbose {
-		fmt.Printf("%d trades saved\n", total)
-	}
-	return nil
 }
 
 func loadExisting(path string) Payload {
@@ -587,6 +588,26 @@ func fetchKucoinBalance(s *kucoin.ApiService, assets map[string]Asset) (map[stri
 	return new, nil
 }
 
+func getPrice(o *kucoin.OrderModel, qty float64) (float64, error) {
+	price := 0.0
+	if o.Price == "0" {
+		spent, err := strconv.ParseFloat(o.DealFunds, 64)
+		if err != nil {
+			return 0, err
+		}
+		price = spent / qty
+		if price == 0 {
+			return 0, fmt.Errorf("Unnable to get price for order %s", o.Id)
+		}
+		return price, nil
+	}
+	price, err := strconv.ParseFloat(o.Price, 64)
+	if err != nil {
+		return 0, err
+	}
+	return price, nil
+}
+
 func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets map[string]Asset, verbose bool) (map[string]Asset, error) {
 	if verbose {
 		fmt.Printf("fetching more kucoin trades from %d page %d\n", startAt, page)
@@ -611,15 +632,13 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 	if newAssets == nil {
 		newAssets = map[string]Asset{}
 	}
-	earliest := time.Now().UnixMilli()
+	earliest := endAt
 	for _, o := range os {
-		e := o.CreatedAt
-		if e < earliest {
-			earliest = e
+		if o.CreatedAt < earliest {
+			earliest = o.CreatedAt
 		}
 		filled := !o.IsActive && !o.CancelExist
 		if !filled {
-			fmt.Println("not filled", o.Symbol)
 			continue
 		}
 		qty, err := strconv.ParseFloat(o.DealSize, 64)
@@ -629,22 +648,9 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		if qty <= 0 {
 			continue
 		}
-		price := 0.0
-		if o.Price == "0" {
-			spent, err := strconv.ParseFloat(o.DealFunds, 64)
-			if err != nil {
-				return nil, err
-			}
-			price = spent / qty
-			if price == 0 {
-				fmt.Println("0 price", o.Symbol)
-				continue
-			}
-		} else {
-			price, err = strconv.ParseFloat(o.Price, 64)
-			if err != nil {
-				return nil, err
-			}
+		price, err := getPrice(o, qty)
+		if err != nil {
+			return nil, err
 		}
 		fee, err := strconv.ParseFloat(o.Fee, 64)
 		if err != nil {
@@ -652,9 +658,11 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		}
 		symbols := strings.Split(o.Symbol, "-")
 		asset := Asset{}
-		asset.Pairs = map[string]Pair{}
 		if value, ok := assets[symbols[0]]; ok {
 			asset = value
+		}
+		if asset.Pairs == nil {
+			asset.Pairs = map[string]Pair{}
 		}
 		pair := Pair{}
 		pair.Fees = map[string]float64{}
@@ -685,10 +693,10 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		trade.Qty = qty
 		trade.Commission = fee
 		trade.CommissionAsset = o.FeeCurrency
-		if pair.LatestTrade == nil || pair.LatestTrade.Time.Unix() < t.Unix() {
+		if pair.LatestTrade == nil || pair.LatestTrade.Time.UnixMilli() < o.CreatedAt {
 			pair.LatestTrade = &trade
 		}
-		if pair.EarliestTrade == nil || pair.EarliestTrade.Time.Unix() > t.Unix() {
+		if pair.EarliestTrade == nil || pair.EarliestTrade.Time.UnixMilli() > o.CreatedAt {
 			pair.EarliestTrade = &trade
 		}
 
@@ -696,11 +704,19 @@ func fetchKucoinTrades(s *kucoin.ApiService, startAt, endAt, page int64, assets 
 		asset.Pairs[symbols[1]] = pair
 		newAssets[symbols[0]] = asset
 	}
-	if pd.TotalPage > pd.CurrentPage {
-		return fetchKucoinTrades(s, startAt, time.Now().UnixMilli(), page+1, newAssets, verbose)
+	if pd.TotalPage > page {
+		return fetchKucoinTrades(s, startAt, endAt, page+1, newAssets, verbose)
 	}
 	// fetch older than earliest
 	if len(os) > 0 {
+		for _, a := range assets {
+			for _, p := range a.Pairs {
+				t := p.EarliestTrade.Time.UnixMilli()
+				if t < earliest {
+					earliest = t
+				}
+			}
+		}
 		return fetchKucoinTrades(s, 0, earliest-1, 1, newAssets, verbose)
 	}
 	return newAssets, nil
