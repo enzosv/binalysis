@@ -27,21 +27,27 @@ func checkHash(password, hash string) bool {
 	return err == nil
 }
 
-func SignupOrLogin(path, password string, account Account) (Account, error) {
-	content, err := ioutil.ReadFile(path + "/" + account.Username)
+func Login(path, username, password string) (Account, error) {
+	content, err := ioutil.ReadFile(path + "/" + username)
+	if err != nil {
+		return Account{}, err
+	}
 	var existing Account
+	json.Unmarshal(content, &existing)
+	if !checkHash(password, existing.Hash) {
+		return Account{}, fmt.Errorf("invalid password for account")
+	}
+	return existing, nil
+}
+
+func Signup(path, password string, account Account) (Account, error) {
+	_, err := ioutil.ReadFile(path + "/" + account.Username)
 	if err != nil {
 		fmt.Println(err)
 		//signup
 		return CreateAccount(account, password, path)
 	}
-
-	json.Unmarshal(content, &existing)
-	//login
-	if !checkHash(password, existing.Hash) {
-		return Account{}, fmt.Errorf("Invalid password for account")
-	}
-	return existing, nil
+	return Account{}, fmt.Errorf("account already exists with username '%s'", account.Username)
 }
 
 // TODO: update account keys, secrets
@@ -57,6 +63,30 @@ func CreateAccount(account Account, password, path string) (Account, error) {
 		return Account{}, err
 	}
 	return account, nil
+}
+
+func (account Account) Update(password, path string) (Account, error) {
+	existing, err := Login(path, account.Username, password)
+	if err != nil {
+		return Account{}, err
+	}
+	for k, a := range account.Exchanges {
+		if a.APIKey == "" || a.Secret == "" {
+			// use unlink to delete
+			continue
+		}
+		existing.Exchanges[k] = a
+	}
+	err = existing.Save(path)
+	if err != nil {
+		return Account{}, err
+	}
+	return existing, nil
+}
+
+func (a Account) UnlinkExchange(key, path string) {
+	delete(a.Exchanges, key)
+	a.Save(path)
 }
 
 func (a Account) Save(path string) error {
