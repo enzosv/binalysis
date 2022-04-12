@@ -13,8 +13,8 @@ import (
 type Account struct {
 	Exchanges  map[string]ExchangeAccount `json:"exchanges"`
 	Username   string                     `json:"username"`
-	Hash       string                     `json:"hash"`
-	LastUpdate time.Time                  `json:"last_update"`
+	Hash       string
+	LastUpdate time.Time `json:"last_update"`
 }
 
 func hash(password string) (string, error) {
@@ -43,50 +43,28 @@ func Login(path, username, password string) (Account, error) {
 func Signup(path, password string, account Account) (Account, error) {
 	_, err := ioutil.ReadFile(path + "/" + account.Username)
 	if err != nil {
-		fmt.Println(err)
-		//signup
-		return CreateAccount(account, password, path)
+		hash, err := hash(password)
+		if err != nil {
+			return Account{}, err
+		}
+		account.Hash = hash
+		err = account.Save(path)
+		if err != nil {
+			return Account{}, err
+		}
+		return account, nil
 	}
 	return Account{}, fmt.Errorf("account already exists with username '%s'", account.Username)
 }
 
-// TODO: update account keys, secrets
-
-func CreateAccount(account Account, password, path string) (Account, error) {
-	hash, err := hash(password)
-	if err != nil {
-		return Account{}, err
-	}
-	account.Hash = hash
-	err = account.Save(path)
-	if err != nil {
-		return Account{}, err
-	}
-	return account, nil
+func (a Account) LinkExchange(e ExchangeAccount, key, path string) error {
+	a.Exchanges[key] = e
+	return a.Save(path)
 }
 
-func (account Account) Update(password, path string) (Account, error) {
-	existing, err := Login(path, account.Username, password)
-	if err != nil {
-		return Account{}, err
-	}
-	for k, a := range account.Exchanges {
-		if a.APIKey == "" || a.Secret == "" {
-			// use unlink to delete
-			continue
-		}
-		existing.Exchanges[k] = a
-	}
-	err = existing.Save(path)
-	if err != nil {
-		return Account{}, err
-	}
-	return existing, nil
-}
-
-func (a Account) UnlinkExchange(key, path string) {
+func (a Account) UnlinkExchange(key, path string) error {
 	delete(a.Exchanges, key)
-	a.Save(path)
+	return a.Save(path)
 }
 
 func (a Account) Save(path string) error {
