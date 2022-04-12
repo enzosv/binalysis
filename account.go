@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,8 +19,14 @@ type Account struct {
 	LastUpdate time.Time `json:"last_update"`
 }
 
-func hash(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+func simpleHash(text string) string {
+	h := sha1.New()
+	h.Write([]byte(text))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func hash(text string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(text), 14)
 	return string(bytes), err
 }
 
@@ -28,7 +36,7 @@ func checkHash(password, hash string) bool {
 }
 
 func Login(path, username, password string) (Account, error) {
-	content, err := ioutil.ReadFile(path + "/" + username)
+	content, err := ioutil.ReadFile(path + "/" + simpleHash(username))
 	if err != nil {
 		return Account{}, err
 	}
@@ -74,7 +82,7 @@ func (a Account) Save(path string) error {
 		return err
 	}
 	// TODO: encrypt
-	err = ioutil.WriteFile(path, file, 0644)
+	err = ioutil.WriteFile(path+"/"+simpleHash(a.Username), file, 0644)
 	if err != nil {
 		err = errors.Wrap(err, "persisting")
 		return err
