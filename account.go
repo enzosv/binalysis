@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -17,6 +19,22 @@ type Account struct {
 	Username   string                     `json:"username"`
 	Hash       string
 	LastUpdate time.Time `json:"last_update"`
+}
+
+type ExchangeAccount struct {
+	APIKey string           `json:"api_key"`
+	Secret string           `json:"secret"`
+	Phrase string           `json:"phrase"`
+	Assets map[string]Asset `json:"assets"`
+}
+
+type AccountError struct {
+	HTTPCode int
+	Message  string
+}
+
+func (e *AccountError) Error() string {
+	return fmt.Sprintf("%d:%s", e.HTTPCode, e.Message)
 }
 
 func simpleHash(text string) string {
@@ -43,13 +61,17 @@ func Login(path, username, password string) (Account, error) {
 	var existing Account
 	json.Unmarshal(content, &existing)
 	if !checkHash(password, existing.Hash) {
-		return Account{}, fmt.Errorf("invalid password for account")
+		return Account{}, &AccountError{http.StatusUnauthorized, fmt.Sprintf("invalid password for account '%s'", username)}
 	}
 	return existing, nil
 }
 
 func Signup(path, password string, account Account) (Account, error) {
+	if strings.Contains(account.Username, "/") {
+		return Account{}, &AccountError{http.StatusBadRequest, "username must not contain '/'"}
+	}
 	_, err := ioutil.ReadFile(path + "/" + account.Username)
+
 	if err != nil {
 		hash, err := hash(password)
 		if err != nil {
@@ -62,7 +84,7 @@ func Signup(path, password string, account Account) (Account, error) {
 		}
 		return account, nil
 	}
-	return Account{}, fmt.Errorf("account already exists with username '%s'", account.Username)
+	return Account{}, &AccountError{http.StatusBadRequest, fmt.Sprintf("account already exists with username '%s'", account.Username)}
 }
 
 func (a Account) LinkExchange(e ExchangeAccount, key, path string) error {
@@ -75,6 +97,7 @@ func (a Account) UnlinkExchange(key, path string) error {
 	return a.Save(path)
 }
 
+// consider a nosql database
 func (a Account) Save(path string) error {
 	file, err := json.Marshal(a)
 	if err != nil {
@@ -88,11 +111,4 @@ func (a Account) Save(path string) error {
 		return err
 	}
 	return nil
-}
-
-type ExchangeAccount struct {
-	APIKey string           `json:"api_key"`
-	Secret string           `json:"secret"`
-	Phrase string           `json:"phrase"`
-	Assets map[string]Asset `json:"assets"`
 }
