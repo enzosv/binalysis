@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -56,6 +57,10 @@ func checkHash(password, hash string) bool {
 func Login(path, username, password string) (Account, error) {
 	content, err := ioutil.ReadFile(path + "/" + simpleHash(username))
 	if err != nil {
+		// also consider err.(*os.PathError)
+		if errors.Is(err, os.ErrNotExist) {
+			return Account{}, &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
+		}
 		return Account{}, err
 	}
 	var existing Account
@@ -70,21 +75,19 @@ func Signup(path, password string, account Account) (Account, error) {
 	if strings.Contains(account.Username, "/") {
 		return Account{}, &AccountError{http.StatusBadRequest, "username must not contain '/'"}
 	}
-	_, err := ioutil.ReadFile(path + "/" + account.Username)
-
-	if err != nil {
-		hash, err := hash(password)
-		if err != nil {
-			return Account{}, err
-		}
-		account.Hash = hash
-		err = account.Save(path)
-		if err != nil {
-			return Account{}, err
-		}
-		return account, nil
+	if _, err := os.Stat(path + "/" + simpleHash(account.Username)); !errors.Is(err, os.ErrNotExist) {
+		return Account{}, &AccountError{http.StatusBadRequest, fmt.Sprintf("account already exists with username '%s'", account.Username)}
 	}
-	return Account{}, &AccountError{http.StatusBadRequest, fmt.Sprintf("account already exists with username '%s'", account.Username)}
+	hash, err := hash(password)
+	if err != nil {
+		return Account{}, err
+	}
+	account.Hash = hash
+	err = account.Save(path)
+	if err != nil {
+		return Account{}, err
+	}
+	return account, nil
 }
 
 func (a Account) LinkExchange(e ExchangeAccount, key, path string) error {
