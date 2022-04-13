@@ -124,6 +124,7 @@ func main() {
 	r.HandleFunc("/update", UpdateHandler(*store, *verbose)).Methods("POST")
 	r.HandleFunc("/del", DeleteHandler(*store, *verbose)).Methods("DELETE")
 	r.PathPrefix("/").Handler(gziphandler.GzipHandler(http.FileServer(http.Dir("./web/"))))
+	// r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	if *verbose {
 		fmt.Printf("running at %d\nstoring at %s\n", *port, *store)
 	}
@@ -578,8 +579,9 @@ func fetchKucoinBalance(s *kucoin.ApiService, assets map[string]Asset) (map[stri
 			return new, err
 		}
 		if value, ok := assets[a.Currency]; ok {
-			value.Balance += bal
+			value.Balance = bal
 			new[a.Currency] = value
+			continue
 		}
 		n := Asset{}
 		n.Balance = bal
