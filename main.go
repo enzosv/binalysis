@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/Kucoin/kucoin-go-sdk"
-	"github.com/NYTimes/gziphandler"
 	binance2 "github.com/adshao/go-binance/v2"
 	common "github.com/adshao/go-binance/v2/common"
 	"github.com/binance-exchange/go-binance"
@@ -123,7 +122,8 @@ func main() {
 	r.HandleFunc("/latest", LatestHandler(*store, *verbose)).Methods("GET")
 	r.HandleFunc("/update", UpdateHandler(*store, *verbose)).Methods("POST")
 	r.HandleFunc("/del", DeleteHandler(*store, *verbose)).Methods("DELETE")
-	r.PathPrefix("/").Handler(gziphandler.GzipHandler(http.FileServer(http.Dir("./web/"))))
+	// r.PathPrefix("/").Handler(gziphandler.GzipHandler(http.FileServer(http.Dir("./web/"))))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 	if *verbose {
 		fmt.Printf("running at %d\nstoring at %s\n", *port, *store)
 	}
