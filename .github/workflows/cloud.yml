@@ -19,8 +19,14 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.18'
+      - name: Setup
+        run: go get -d && 
       - name: Build
-        run: go get -d && go build && cd web && GOOS=js GOARCH=wasm go build -o web.wasm && cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm_exec.js
+        run: go build
+      - name: Setup Web
+        run: cd web && cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm_exec.js
+      - name: Build Web
+        run: GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web.wasm && gzip -9 -v -c web.wasm > web.wasm.gz
       - name: Deploy
         uses: easingthemes/ssh-deploy@main
         env:
@@ -28,7 +34,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.HOST_DNS }}
           REMOTE_USER: ${{ secrets.USERNAME }}
           TARGET: ${{ secrets.TARGET_DIR }}
-          EXCLUDE: "/.git/, /.github/, main.go, go.mod, go.sum, README.md, LICENSE, screenshot.png"
+          EXCLUDE: "/.git/, /.github/, main.go, go.mod, go.sum, README.md, LICENSE, screenshot.png, /web.wasm"
       - name: Run
         env:
           TARGET: ${{ secrets.TARGET_DIR }}
