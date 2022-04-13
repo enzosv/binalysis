@@ -20,7 +20,7 @@ jobs:
         with:
           go-version: '1.18'
       - name: Setup
-        run: go get -d && 
+        run: go get -d
       - name: Build
         run: go build
       - name: Setup Web
