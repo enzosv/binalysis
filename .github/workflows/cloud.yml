@@ -34,7 +34,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.HOST_DNS }}
           REMOTE_USER: ${{ secrets.USERNAME }}
           TARGET: ${{ secrets.TARGET_DIR }}
-          EXCLUDE: "/.git/, /.github/, main.go, go.mod, go.sum, README.md, LICENSE, screenshot.png, /web.wasm"
+          EXCLUDE: "/.git/, /.github/, main.go, go.mod, go.sum, README.md, LICENSE, screenshot.png, /web/web.wasm"
       - name: Run
         env:
           TARGET: ${{ secrets.TARGET_DIR }}
