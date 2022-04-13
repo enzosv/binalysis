@@ -1,27 +1,16 @@
 const wasmBrowserInstantiate = async (wasmModuleUrl, importObject) => {
-    let response = undefined;
 
-    if (WebAssembly.instantiateStreaming) {
-        response = await WebAssembly.instantiateStreaming(
-            pako.ungzip(await (await fetch(wasmModuleUrl))),
-            importObject
-        );
-    } else {
-        const fetchAndInstantiateTask = async () => {
-            const buffer = pako.ungzip(await (await fetch(wasmModuleUrl)).arrayBuffer());
-            return WebAssembly.instantiate(buffer, importObject);
-        };
-        response = await fetchAndInstantiateTask();
-    }
-
-    return response;
 };
 
 const go = new Go();
 
 const runWasmAdd = async () => {
     const importObject = go.importObject;
-    const wasmModule = await wasmBrowserInstantiate("./web.wasm.gz", importObject);
+    const fetchAndInstantiateTask = async () => {
+        const buffer = pako.ungzip(await (await fetch("./web.wasm.gz")).arrayBuffer());
+        return WebAssembly.instantiate(buffer, importObject);
+    };
+    const wasmModule = await fetchAndInstantiateTask();
     go.run(wasmModule.instance);
     setup()
 };
