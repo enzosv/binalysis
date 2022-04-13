@@ -26,7 +26,7 @@ jobs:
       - name: Setup Web
         run: cd web && cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm_exec.js
       - name: Build Web
-        run: GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web.wasm && gzip -9 -v -c web.wasm > web.wasm.gz
+        run: cd web && GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web.wasm && gzip -9 -v -c web.wasm > web.wasm.gz
       - name: Deploy
         uses: easingthemes/ssh-deploy@main
         env:
