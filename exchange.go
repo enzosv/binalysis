@@ -9,7 +9,7 @@ import (
 )
 
 //TODO: FetchBalance Protocol, BinanceService, KucoinService
-func (e ExchangeAccount) BinanceFetchBalance(ctx context.Context, service *binance2.Client) (map[string]Asset, error) {
+func BinanceFetchBalance(ctx context.Context, service *binance2.Client) (map[string]Asset, error) {
 	account, err := service.NewGetAccountService().Do(ctx)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (e ExchangeAccount) BinanceFetchBalance(ctx context.Context, service *binan
 	return assets, nil
 }
 
-func (e ExchangeAccount) KucoinFetchBalance(ctx context.Context, service *kucoin.ApiService) (map[string]Asset, error) {
+func KucoinFetchBalance(ctx context.Context, service *kucoin.ApiService) (map[string]Asset, error) {
 	rsp, err := service.Accounts("", "")
 	if err != nil {
 		return nil, err

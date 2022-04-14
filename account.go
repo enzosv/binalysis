@@ -18,8 +18,8 @@ import (
 type Account struct {
 	Exchanges  map[string]ExchangeAccount `json:"exchanges"`
 	Username   string                     `json:"username"`
-	Hash       string
-	LastUpdate time.Time `json:"last_update"`
+	Hash       string                     `json:"hash"`
+	LastUpdate time.Time                  `json:"last_update"`
 }
 
 type ExchangeAccount struct {
