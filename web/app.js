@@ -17,7 +17,7 @@ const wasmBrowserInstantiate = async (wasmModuleUrl, importObject) => {
 };
 
 // debugging slow load
-const bin = fetch("http://binalysis.enzosv.xyz/web.wasm.gz")
+const bin = fetch("./web.wasm.gz")
 
 const go = new Go();
 
