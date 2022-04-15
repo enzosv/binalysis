@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -54,21 +55,46 @@ func checkHash(password, hash string) bool {
 	return err == nil
 }
 
-func Login(path, username, password string) (Account, error) {
+func Login(path, username, password string) (string, error) {
 	content, err := ioutil.ReadFile(path + "/" + simpleHash(username))
 	if err != nil {
 		// also consider err.(*os.PathError)
 		if errors.Is(err, os.ErrNotExist) {
-			return Account{}, &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
+			return "", &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
 		}
-		return Account{}, err
+		return "", err
 	}
 	var existing Account
 	json.Unmarshal(content, &existing)
 	if !checkHash(password, existing.Hash) {
-		return Account{}, &AccountError{http.StatusUnauthorized, fmt.Sprintf("invalid password for account '%s'", username)}
+		return "", &AccountError{http.StatusUnauthorized, fmt.Sprintf("invalid password for account '%s'", username)}
 	}
-	return existing, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username": existing.Username,
+	})
+	return token.SignedString(hmacSecret)
+}
+
+func getUsernameFromToken(tokenString string) (string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return hmacSecret, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return "", fmt.Errorf("invalid token")
+	}
+	if username, ok := claims["username"]; ok {
+		return fmt.Sprintf("%v", username), nil
+	}
+	return "", fmt.Errorf("invalid token")
 }
 
 func Signup(path, password string, account Account) (Account, error) {

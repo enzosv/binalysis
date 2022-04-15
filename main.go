@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -111,11 +112,20 @@ func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 	return new
 }
 
+var hmacSecret []byte
+
 func main() {
 	port := flag.Int("p", 8080, "port to use")
 	store := flag.String("s", ".", "Directory for storing json. Relative to home")
 	verbose := flag.Bool("v", false, "print info logs")
 	flag.Parse()
+
+	secret, err := generateRandomBytes(32)
+	if err != nil {
+		log.Fatal(err)
+	}
+	hmacSecret = secret
+
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "binalysis pong")
@@ -130,6 +140,15 @@ func main() {
 	}
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), r))
+}
+
+func generateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 func LatestHandler(store string, verbose bool) http.HandlerFunc {

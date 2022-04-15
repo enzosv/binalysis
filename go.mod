@@ -7,6 +7,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/adshao/go-binance/v2 v2.3.5
 	github.com/binance-exchange/go-binance v0.0.0-20180518133450-1af034307da5
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/mux v1.6.2
 	github.com/pkg/errors v0.9.1
 	golang.org/x/crypto v0.0.0-20210915214749-c084706c2272
