@@ -37,12 +37,22 @@ Not all information is captured yet.
 ## Requirements
 1. go
 2. [Binance API Key](https://www.binance.com/en/support/faq/360002502072/)
+
 ## Steps
+### Build backend
 ```
 go get -d
 go build
-./binalysis
 ```
-open browser at http://localhost:8080
+### Build frontend
+```
+cd web
+go get -d
+GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web.wasm
+gzip -9 -v -c web.wasm > web.wasm.gz
+```
+### Run
+  1. `./binalysis`
+  2. open browser at http://localhost:8080
 
 Tips are appreciated. 0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9
