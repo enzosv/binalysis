@@ -29,7 +29,7 @@ Not all information is captured yet.
 ## TODO
 * Better website
 * Capture more data
-* Support more exchanges
+* Support more exchanges ([kucoin](https://docs.kucoin.com/#general) in progress in [develop](https://github.com/enzosv/binalysis/tree/develop) branch)
 * Notifications for finished update
 * Notifications for price above/below average buy
 
@@ -37,12 +37,23 @@ Not all information is captured yet.
 ## Requirements
 1. go
 2. [Binance API Key](https://www.binance.com/en/support/faq/360002502072/)
+
 ## Steps
+### Build backend
 ```
 go get -d
 go build
-./binalysis
 ```
-open browser at http://localhost:8080
+### Build frontend
+```
+cd web
+go get -d
+GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web.wasm
+gzip -9 -v -c web.wasm > web.wasm.gz
+```
+### Run
+  1. cd to repo root folder
+  2. `./binalysis`
+  3. open browser at http://localhost:8080
 
 Tips are appreciated. 0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9
