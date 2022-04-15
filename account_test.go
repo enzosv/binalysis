@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const DIR = "accounts"
+const DIR = "test_accounts"
 const PASSWORD = "password"
 const USERNAME = "test"
 
