@@ -52,7 +52,8 @@ GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o web.wasm
 gzip -9 -v -c web.wasm > web.wasm.gz
 ```
 ### Run
-  1. `./binalysis`
-  2. open browser at http://localhost:8080
+  1. cd to repo root folder
+  2. `./binalysis`
+  3. open browser at http://localhost:8080
 
 Tips are appreciated. 0xBa2306a4e2AadF2C3A6084f88045EBed0E842bF9
