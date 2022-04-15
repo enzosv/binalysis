@@ -65,7 +65,11 @@ func accountFromToken(dir, token string) (Account, error) {
 	}
 	var existing Account
 	err = json.Unmarshal(content, &existing)
-	return existing, err
+	if err != nil {
+		return Account{}, err
+	}
+	existing.Username = username
+	return existing, nil
 }
 
 func simpleHash(text string) string {
@@ -108,8 +112,15 @@ func DeleteAccount(dir, token string) error {
 		return err
 	}
 	path := fmt.Sprintf("%s/%s", dir, simpleHash(username))
-	fmt.Println("filename", username, simpleHash(username))
 	return os.Remove(path)
+}
+
+func GetAccountStats(dir, token string) (map[string]ExchangeAccount, time.Time, error) {
+	account, err := accountFromToken(dir, token)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	return account.Exchanges, account.LastUpdate, nil
 }
 
 func getUsernameFromToken(tokenString string) (string, error) {
