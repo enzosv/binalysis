@@ -8,13 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const DIR = "."
+const DIR = "accounts"
 const PASSWORD = "password"
 const USERNAME = "test"
 
 var PATH string = fmt.Sprintf("%s/%s", DIR, simpleHash(USERNAME))
 
 func TestLifecycle(t *testing.T) {
+	os.Mkdir(DIR, 0760)
+	if DIR != "." {
+		defer os.Remove(DIR)
+	}
+
 	defer os.Remove(PATH)
 	// signup
 	account := Account{}
@@ -35,6 +40,7 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
+	// test token
 	username, err := getUsernameFromToken(token)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -43,10 +49,12 @@ func TestLifecycle(t *testing.T) {
 		return
 	}
 
+	// get account
 	_, _, err = GetAccountStats(DIR, token)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
+
 	// delete
 	err = DeleteAccount(DIR, token)
 	if err != nil {
