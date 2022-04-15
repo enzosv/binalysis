@@ -29,7 +29,7 @@ Not all information is captured yet.
 ## TODO
 * Better website
 * Capture more data
-* Support more exchanges
+* Support more exchanges ([kucoin](https://docs.kucoin.com/#general) in progress in [develop](https://github.com/enzosv/binalysis/tree/develop) branch)
 * Notifications for finished update
 * Notifications for price above/below average buy
 
