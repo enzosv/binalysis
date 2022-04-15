@@ -14,10 +14,6 @@ const USERNAME = "test"
 
 var PATH string = fmt.Sprintf("%s/%s", DIR, simpleHash(USERNAME))
 
-func TestConsistentHash(t *testing.T) {
-	assert.Equal(t, simpleHash("text"), simpleHash("text"), "hash does not yield consistent results")
-}
-
 func TestLifecycle(t *testing.T) {
 	defer os.Remove(PATH)
 	// signup
