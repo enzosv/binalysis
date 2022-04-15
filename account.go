@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -36,7 +35,7 @@ type AccountError struct {
 }
 
 func (e *AccountError) Error() string {
-	return fmt.Sprintf("%d:%s", e.HTTPCode, e.Message)
+	return fmt.Sprintf("%d: %s", e.HTTPCode, e.Message)
 }
 
 func (a Account) path(store string) string {
@@ -55,21 +54,7 @@ func accountFromToken(dir, token string) (Account, error) {
 	if err != nil {
 		return Account{}, nil
 	}
-	content, err := ioutil.ReadFile(dir + "/" + simpleHash(username))
-	if err != nil {
-		// also consider err.(*os.PathError)
-		if errors.Is(err, os.ErrNotExist) {
-			return Account{}, &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
-		}
-		return Account{}, err
-	}
-	var existing Account
-	err = json.Unmarshal(content, &existing)
-	if err != nil {
-		return Account{}, err
-	}
-	existing.Username = username
-	return existing, nil
+	return loadAccount(dir, username)
 }
 
 func simpleHash(text string) string {
@@ -88,17 +73,29 @@ func checkHash(password, hash string) bool {
 	return err == nil
 }
 
-func Login(dir, username, password string) (string, error) {
+func loadAccount(dir, username string) (Account, error) {
 	content, err := ioutil.ReadFile(dir + "/" + simpleHash(username))
 	if err != nil {
 		// also consider err.(*os.PathError)
 		if errors.Is(err, os.ErrNotExist) {
-			return "", &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
+			return Account{}, &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
 		}
-		return "", err
+		return Account{}, err
 	}
 	var existing Account
-	json.Unmarshal(content, &existing)
+	err = json.Unmarshal(content, &existing)
+	if err != nil {
+		return Account{}, &AccountError{http.StatusInternalServerError, err.Error()}
+	}
+	existing.Username = username
+	return existing, nil
+}
+
+func Login(dir, username, password string) (string, error) {
+	existing, err := loadAccount(dir, username)
+	if err != nil {
+		return "", err
+	}
 	if !checkHash(password, existing.Hash) {
 		return "", &AccountError{http.StatusUnauthorized, fmt.Sprintf("invalid password for account '%s'", username)}
 	}
@@ -146,10 +143,8 @@ func getUsernameFromToken(tokenString string) (string, error) {
 }
 
 func Signup(dir, password string, account Account) (string, error) {
-	if strings.Contains(account.Username, "/") {
-		return "", &AccountError{http.StatusBadRequest, "username must not contain '/'"}
-	}
-	if _, err := os.Stat(account.path(dir)); !errors.Is(err, os.ErrNotExist) {
+	_, err := loadAccount(dir, account.Username)
+	if err == nil {
 		return "", &AccountError{http.StatusBadRequest, fmt.Sprintf("account already exists with username '%s'", account.Username)}
 	}
 	hash, err := hash(password)
