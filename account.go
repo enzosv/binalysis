@@ -18,7 +18,7 @@ import (
 
 type Account struct {
 	Exchanges  map[string]ExchangeAccount `json:"exchanges"`
-	Username   string                     `json:"username"`
+	Username   string                     `json:"-"`
 	Hash       string                     `json:"hash"`
 	LastUpdate time.Time                  `json:"last_update"`
 }
@@ -39,6 +39,35 @@ func (e *AccountError) Error() string {
 	return fmt.Sprintf("%d:%s", e.HTTPCode, e.Message)
 }
 
+func (a Account) path(store string) string {
+	return fmt.Sprintf("%s/%s", store, simpleHash(a.Username))
+}
+
+func (a Account) token() (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username": a.Username,
+	})
+	return token.SignedString(hmacSecret)
+}
+
+func accountFromToken(dir, token string) (Account, error) {
+	username, err := getUsernameFromToken(token)
+	if err != nil {
+		return Account{}, nil
+	}
+	content, err := ioutil.ReadFile(dir + "/" + simpleHash(username))
+	if err != nil {
+		// also consider err.(*os.PathError)
+		if errors.Is(err, os.ErrNotExist) {
+			return Account{}, &AccountError{http.StatusNotFound, fmt.Sprintf("account with username '%s' does not exist", username)}
+		}
+		return Account{}, err
+	}
+	var existing Account
+	err = json.Unmarshal(content, &existing)
+	return existing, err
+}
+
 func simpleHash(text string) string {
 	h := sha1.New()
 	h.Write([]byte(text))
@@ -55,8 +84,8 @@ func checkHash(password, hash string) bool {
 	return err == nil
 }
 
-func Login(path, username, password string) (string, error) {
-	content, err := ioutil.ReadFile(path + "/" + simpleHash(username))
+func Login(dir, username, password string) (string, error) {
+	content, err := ioutil.ReadFile(dir + "/" + simpleHash(username))
 	if err != nil {
 		// also consider err.(*os.PathError)
 		if errors.Is(err, os.ErrNotExist) {
@@ -69,10 +98,18 @@ func Login(path, username, password string) (string, error) {
 	if !checkHash(password, existing.Hash) {
 		return "", &AccountError{http.StatusUnauthorized, fmt.Sprintf("invalid password for account '%s'", username)}
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": existing.Username,
-	})
-	return token.SignedString(hmacSecret)
+	existing.Username = username
+	return existing.token()
+}
+
+func DeleteAccount(dir, token string) error {
+	username, err := getUsernameFromToken(token)
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("%s/%s", dir, simpleHash(username))
+	fmt.Println("filename", username, simpleHash(username))
+	return os.Remove(path)
 }
 
 func getUsernameFromToken(tokenString string) (string, error) {
@@ -97,23 +134,23 @@ func getUsernameFromToken(tokenString string) (string, error) {
 	return "", fmt.Errorf("invalid token")
 }
 
-func Signup(path, password string, account Account) (Account, error) {
+func Signup(dir, password string, account Account) (string, error) {
 	if strings.Contains(account.Username, "/") {
-		return Account{}, &AccountError{http.StatusBadRequest, "username must not contain '/'"}
+		return "", &AccountError{http.StatusBadRequest, "username must not contain '/'"}
 	}
-	if _, err := os.Stat(path + "/" + simpleHash(account.Username)); !errors.Is(err, os.ErrNotExist) {
-		return Account{}, &AccountError{http.StatusBadRequest, fmt.Sprintf("account already exists with username '%s'", account.Username)}
+	if _, err := os.Stat(account.path(dir)); !errors.Is(err, os.ErrNotExist) {
+		return "", &AccountError{http.StatusBadRequest, fmt.Sprintf("account already exists with username '%s'", account.Username)}
 	}
 	hash, err := hash(password)
 	if err != nil {
-		return Account{}, err
+		return "", err
 	}
 	account.Hash = hash
-	err = account.Save(path)
+	err = account.Save(dir)
 	if err != nil {
-		return Account{}, err
+		return "", err
 	}
-	return account, nil
+	return account.token()
 }
 
 func (a Account) LinkExchange(e ExchangeAccount, key, path string) error {
@@ -121,20 +158,20 @@ func (a Account) LinkExchange(e ExchangeAccount, key, path string) error {
 	return a.Save(path)
 }
 
-func (a Account) UnlinkExchange(key, path string) error {
+func (a Account) UnlinkExchange(key, dir string) error {
 	delete(a.Exchanges, key)
-	return a.Save(path)
+	return a.Save(dir)
 }
 
 // consider a nosql database
-func (a Account) Save(path string) error {
+func (a Account) Save(dir string) error {
 	file, err := json.Marshal(a)
 	if err != nil {
 		err = errors.Wrap(err, "encoding")
 		return err
 	}
 	// TODO: encrypt
-	err = ioutil.WriteFile(path+"/"+simpleHash(a.Username), file, 0644)
+	err = ioutil.WriteFile(a.path(dir), file, 0644)
 	if err != nil {
 		err = errors.Wrap(err, "persisting")
 		return err
