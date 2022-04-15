@@ -40,10 +40,17 @@ func TestLifecycle(t *testing.T) {
 	}
 
 	username, err := getUsernameFromToken(token)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	if !assert.Equal(t, account.Username, username, "token username mismatch") {
 		return
 	}
-	fmt.Println("filename", USERNAME, simpleHash(USERNAME))
+
+	_, _, err = GetAccountStats(DIR, token)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	// delete
 	err = DeleteAccount(DIR, token)
 	if err != nil {
