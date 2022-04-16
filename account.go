@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,7 +10,6 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Account struct {
@@ -39,7 +36,7 @@ func (e *AccountError) Error() string {
 }
 
 func (a Account) path(store string) string {
-	return fmt.Sprintf("%s/%s", store, simpleHash(a.Username))
+	return fmt.Sprintf("%s/%s", store, sha(a.Username))
 }
 
 func (a Account) token() (string, error) {
@@ -47,6 +44,22 @@ func (a Account) token() (string, error) {
 		"username": a.Username,
 	})
 	return token.SignedString(hmacSecret)
+}
+
+// consider a nosql database
+func (a Account) Save(dir string) error {
+	file, err := json.Marshal(a)
+	if err != nil {
+		err = errors.Wrap(err, "encoding")
+		return err
+	}
+	// TODO: encrypt
+	err = ioutil.WriteFile(a.path(dir), file, 0644)
+	if err != nil {
+		err = errors.Wrap(err, "persisting")
+		return err
+	}
+	return nil
 }
 
 func accountFromToken(dir, token string) (Account, error) {
@@ -57,24 +70,8 @@ func accountFromToken(dir, token string) (Account, error) {
 	return loadAccount(dir, username)
 }
 
-func simpleHash(text string) string {
-	h := sha1.New()
-	h.Write([]byte(text))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func hash(text string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(text), 14)
-	return string(bytes), err
-}
-
-func checkHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
-}
-
 func loadAccount(dir, username string) (Account, error) {
-	content, err := ioutil.ReadFile(dir + "/" + simpleHash(username))
+	content, err := ioutil.ReadFile(dir + "/" + sha(username))
 	if err != nil {
 		// also consider err.(*os.PathError)
 		if errors.Is(err, os.ErrNotExist) {
@@ -108,7 +105,7 @@ func DeleteAccount(dir, token string) error {
 	if err != nil {
 		return err
 	}
-	path := fmt.Sprintf("%s/%s", dir, simpleHash(username))
+	path := fmt.Sprintf("%s/%s", dir, sha(username))
 	return os.Remove(path)
 }
 
@@ -182,20 +179,4 @@ func UnlinkExchange(key, dir, token string) error {
 	}
 	delete(a.Exchanges, key)
 	return a.Save(dir)
-}
-
-// consider a nosql database
-func (a Account) Save(dir string) error {
-	file, err := json.Marshal(a)
-	if err != nil {
-		err = errors.Wrap(err, "encoding")
-		return err
-	}
-	// TODO: encrypt
-	err = ioutil.WriteFile(a.path(dir), file, 0644)
-	if err != nil {
-		err = errors.Wrap(err, "persisting")
-		return err
-	}
-	return nil
 }
