@@ -112,12 +112,16 @@ func DeleteAccount(dir, token string) error {
 	return os.Remove(path)
 }
 
-func GetAccountStats(dir, token string) (map[string]ExchangeAccount, time.Time, error) {
+func GetAccountStats(dir, token string) (map[string]map[string]Asset, time.Time, error) {
 	account, err := accountFromToken(dir, token)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	return account.Exchanges, account.LastUpdate, nil
+	assets := map[string]map[string]Asset{}
+	for key, exchange := range account.Exchanges {
+		assets[key] = exchange.Assets
+	}
+	return assets, account.LastUpdate, nil
 }
 
 func getUsernameFromToken(tokenString string) (string, error) {
