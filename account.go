@@ -40,8 +40,13 @@ func (a Account) path(store string) string {
 }
 
 func (a Account) token() (string, error) {
+	// https: //openid.net/specs/openid-connect-core-1_0.html#IDToken
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": a.Username,
+		"sub": a.Username,
+		"exp": time.Now().Add(time.Hour * time.Duration(1)).Unix(),
+		"iat": time.Now().Unix(),
+		"iss": "binalysis.enzosv.xyz",
+		"aud": "binalysis.enzosv.xyz",
 	})
 	return token.SignedString(hmacSecret)
 }
@@ -123,7 +128,6 @@ func GetAccountStats(dir, token string) (map[string]map[string]Asset, time.Time,
 
 func getUsernameFromToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
@@ -137,7 +141,7 @@ func getUsernameFromToken(tokenString string) (string, error) {
 	if !ok || !token.Valid {
 		return "", fmt.Errorf("invalid token")
 	}
-	if username, ok := claims["username"]; ok {
+	if username, ok := claims["sub"]; ok {
 		return fmt.Sprintf("%v", username), nil
 	}
 	return "", fmt.Errorf("invalid token")

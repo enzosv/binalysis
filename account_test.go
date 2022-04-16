@@ -12,7 +12,7 @@ const DIR = "test_accounts"
 const PASSWORD = "password"
 const USERNAME = "test"
 
-var PATH string = fmt.Sprintf("%s/%s", DIR, simpleHash(USERNAME))
+var PATH string = fmt.Sprintf("%s/%s", DIR, sha(USERNAME))
 
 func TestLifecycle(t *testing.T) {
 	os.Mkdir(DIR, 0760)
@@ -39,7 +39,6 @@ func TestLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-
 	// test token
 	username, err := getUsernameFromToken(token)
 	if err != nil {

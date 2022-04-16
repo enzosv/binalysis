@@ -27,6 +27,7 @@ func checkHash(password, hash string) bool {
 }
 
 func generateSecret() []byte {
+	// old tokens will no longer work when generating new secret
 	secret, err := generateRandomBytes(32)
 	if err != nil {
 		log.Fatal(err)
