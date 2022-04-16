@@ -159,12 +159,23 @@ func Signup(dir, password string, account Account) (string, error) {
 	return account.token()
 }
 
-func (a Account) LinkExchange(e ExchangeAccount, key, path string) error {
+func LinkExchange(e ExchangeAccount, key, dir, token string) error {
+	a, err := accountFromToken(dir, token)
+	if err != nil {
+		return err
+	}
+	if a.Exchanges == nil {
+		a.Exchanges = map[string]ExchangeAccount{}
+	}
 	a.Exchanges[key] = e
-	return a.Save(path)
+	return a.Save(dir)
 }
 
-func (a Account) UnlinkExchange(key, dir string) error {
+func UnlinkExchange(key, dir, token string) error {
+	a, err := accountFromToken(dir, token)
+	if err != nil {
+		return err
+	}
 	delete(a.Exchanges, key)
 	return a.Save(dir)
 }
