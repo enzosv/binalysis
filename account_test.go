@@ -49,12 +49,25 @@ func TestLifecycle(t *testing.T) {
 		return
 	}
 
+	binance := ExchangeAccount{}
+	binance.APIKey = "apikey"
+	binance.Secret = "secret"
+
+	err = LinkExchange(binance, "binance", DIR, token)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
 	// get account
 	_, _, err = GetAccountStats(DIR, token)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 
+	err = UnlinkExchange("binance", DIR, token)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 	// delete
 	err = DeleteAccount(DIR, token)
 	if err != nil {
