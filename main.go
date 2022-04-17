@@ -112,11 +112,9 @@ func (a Asset) compute(selling string, trades []*binance.Trade) Asset {
 	return new
 }
 
-var hmacSecret []byte
-
 func main() {
 	port := flag.Int("p", 8080, "port to use")
-	store := flag.String("s", ".", "Directory for storing json. Relative to home")
+	store := flag.String("s", "accounts", "Directory for storing json. Relative to home")
 	verbose := flag.Bool("v", false, "print info logs")
 	flag.Parse()
 
