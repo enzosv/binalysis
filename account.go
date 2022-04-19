@@ -53,6 +53,7 @@ func (a Account) token() (string, error) {
 
 // consider a nosql database
 func (a Account) Save(dir string) error {
+	a.LastUpdate = time.Now()
 	file, err := json.Marshal(a)
 	if err != nil {
 		err = errors.Wrap(err, "encoding")
