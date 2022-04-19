@@ -78,14 +78,12 @@ func (service *binanceService) FetchBalance(ctx context.Context, assets map[stri
 		if err != nil {
 			return nil, err
 		}
-		if n, ok := assets[b.Asset]; ok {
-			n.Balance = free + locked
-			assets[b.Asset] = n
-			continue
+		asset := Asset{}
+		if existing, ok := assets[b.Asset]; ok {
+			asset = existing
 		}
-		n := Asset{}
-		n.Balance = free + locked
-		assets[b.Asset] = n
+		asset.Balance = free + locked
+		assets[b.Asset] = asset
 	}
 	return assets, nil
 }
@@ -105,14 +103,12 @@ func (service *kucoinService) FetchBalance(ctx context.Context, assets map[strin
 		if err != nil {
 			return nil, err
 		}
-		if n, ok := assets[a.Currency]; ok {
-			n.Balance = bal
-			assets[a.Currency] = n
-			continue
+		asset := Asset{}
+		if existing, ok := assets[a.Currency]; ok {
+			asset = existing
 		}
-		n := Asset{}
-		n.Balance = bal
-		assets[a.Currency] = n
+		asset.Balance = bal
+		assets[a.Currency] = asset
 	}
 	return assets, nil
 }
