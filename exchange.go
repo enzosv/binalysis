@@ -9,37 +9,43 @@ import (
 	binance2 "github.com/adshao/go-binance/v2"
 )
 
+type ExchangeService interface {
+	FetchBalance(ctx context.Context, assets map[string]Asset) (map[string]Asset, error)
+}
+
+type binanceService struct {
+	client *binance2.Client
+}
+
+type kucoinService struct {
+	client *kucoin.ApiService
+}
+
+func NewService() ExchangeService { return &binanceService{} }
+
 func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset, time.Time, error) {
 	account, err := accountFromToken(dir, token)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	var binanceService *binance2.Client
-	var kucoinService *kucoin.ApiService
 	exchanges := map[string]map[string]Asset{}
+	var exchangeService ExchangeService
 	for key, e := range account.Exchanges {
-		var assets map[string]Asset
-		var err error
-		// TODO: service protocol
 		switch key {
 		case "binance":
-			binanceService = binance2.NewClient(e.APIKey, e.Secret)
-			assets, err = BinanceFetchBalance(ctx, binanceService, e.Assets)
-			if err != nil {
-				return nil, time.Time{}, err
-			}
+			exchangeService = &binanceService{binance2.NewClient(e.APIKey, e.Secret)}
 		case "kucoin":
-			kucoinService = kucoin.NewApiService(
+			exchangeService = &kucoinService{kucoin.NewApiService(
 				kucoin.ApiBaseURIOption("https://api.kucoin.com"),
 				kucoin.ApiKeyOption(e.APIKey),
 				kucoin.ApiSecretOption(e.Secret),
 				kucoin.ApiPassPhraseOption(e.Phrase),
 				kucoin.ApiKeyVersionOption(kucoin.ApiKeyVersionV2),
-			)
-			assets, err = KucoinFetchBalance(ctx, kucoinService, e.Assets)
-			if err != nil {
-				return nil, time.Time{}, err
-			}
+			)}
+		}
+		assets, err := exchangeService.FetchBalance(ctx, e.Assets)
+		if err != nil {
+			return nil, time.Time{}, err
 		}
 		e.Assets = assets
 		account.Exchanges[key] = e
@@ -52,9 +58,8 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 	return exchanges, time.Now(), nil
 }
 
-//TODO: FetchBalance Protocol, BinanceService, KucoinService
-func BinanceFetchBalance(ctx context.Context, service *binance2.Client, assets map[string]Asset) (map[string]Asset, error) {
-	account, err := service.NewGetAccountService().Do(ctx)
+func (service *binanceService) FetchBalance(ctx context.Context, assets map[string]Asset) (map[string]Asset, error) {
+	account, err := service.client.NewGetAccountService().Do(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +84,8 @@ func BinanceFetchBalance(ctx context.Context, service *binance2.Client, assets m
 	return assets, nil
 }
 
-func KucoinFetchBalance(ctx context.Context, service *kucoin.ApiService, assets map[string]Asset) (map[string]Asset, error) {
-	rsp, err := service.Accounts("", "")
+func (service *kucoinService) FetchBalance(ctx context.Context, assets map[string]Asset) (map[string]Asset, error) {
+	rsp, err := service.client.Accounts("", "")
 	if err != nil {
 		return nil, err
 	}
