@@ -7,6 +7,7 @@ import (
 
 	"github.com/Kucoin/kucoin-go-sdk"
 	binance2 "github.com/adshao/go-binance/v2"
+	common "github.com/adshao/go-binance/v2/common"
 )
 
 type ExchangeService interface {
@@ -61,6 +62,11 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 func (service *binanceService) FetchBalance(ctx context.Context, assets map[string]Asset) (map[string]Asset, error) {
 	account, err := service.client.NewGetAccountService().Do(ctx)
 	if err != nil {
+		if ae, ok := err.(*common.APIError); ok && ae.Code == -1003 {
+			// api rate limit. Wait
+			time.Sleep(time.Minute)
+			return service.FetchBalance(ctx, assets)
+		}
 		return nil, err
 	}
 	for _, b := range account.Balances {
