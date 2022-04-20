@@ -12,6 +12,7 @@ import (
 
 type ExchangeService interface {
 	FetchBalance(ctx context.Context, assets map[string]Asset) (map[string]Asset, error)
+	FetchTrades(ctx context.Context, assets map[string]Asset) (map[string]Asset, error)
 }
 
 type binanceService struct {
@@ -85,6 +86,14 @@ func (service *binanceService) FetchBalance(ctx context.Context, assets map[stri
 		asset.Balance = free + locked
 		assets[b.Asset] = asset
 	}
+	return assets, nil
+}
+
+func (service *binanceService) FetchTrades(ctx context.Context, assets map[string]Asset) (map[string]Asset, error) {
+	return assets, nil
+}
+
+func (service *kucoinService) FetchTrades(ctx context.Context, assets map[string]Asset) (map[string]Asset, error) {
 	return assets, nil
 }
 
