@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -23,6 +24,11 @@ type kucoinService struct {
 	client *kucoin.ApiService
 }
 
+type ExchangeMessage struct {
+	Key      string
+	Exchange ExchangeAccount
+}
+
 func NewService() ExchangeService { return &binanceService{} }
 
 func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset, time.Time, error) {
@@ -30,32 +36,46 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	exchanges := map[string]map[string]Asset{}
 	var exchangeService ExchangeService
+	exchan := make(chan ExchangeMessage)
+	errchan := make(chan error)
 	for key, e := range account.Exchanges {
-		switch key {
-		case "binance":
-			exchangeService = &binanceService{binance2.NewClient(e.APIKey, e.Secret)}
-		case "kucoin":
-			exchangeService = &kucoinService{kucoin.NewApiService(
-				kucoin.ApiBaseURIOption("https://api.kucoin.com"),
-				kucoin.ApiKeyOption(e.APIKey),
-				kucoin.ApiSecretOption(e.Secret),
-				kucoin.ApiPassPhraseOption(e.Phrase),
-				kucoin.ApiKeyVersionOption(kucoin.ApiKeyVersionV2),
-			)}
+		go func(key string, e ExchangeAccount, ch chan ExchangeMessage, errch chan error) {
+			switch key {
+			case "binance":
+				exchangeService = &binanceService{binance2.NewClient(e.APIKey, e.Secret)}
+			case "kucoin":
+				exchangeService = &kucoinService{kucoin.NewApiService(
+					kucoin.ApiBaseURIOption("https://api.kucoin.com"),
+					kucoin.ApiKeyOption(e.APIKey),
+					kucoin.ApiSecretOption(e.Secret),
+					kucoin.ApiPassPhraseOption(e.Phrase),
+					kucoin.ApiKeyVersionOption(kucoin.ApiKeyVersionV2),
+				)}
+			}
+			assets, err := exchangeService.FetchBalance(ctx, e.Assets)
+			if err != nil {
+				errch <- err
+				return
+			}
+			e.Assets = assets
+			exchan <- ExchangeMessage{key, e}
+		}(key, e, exchan, errchan)
+	}
+	exchanges := map[string]map[string]Asset{}
+
+	for i := 0; i < len(account.Exchanges); i++ {
+		select {
+		case message := <-exchan:
+			account.Exchanges[message.Key] = message.Exchange
+			exchanges[message.Key] = message.Exchange.Assets
+			err := account.Save(dir)
+			if err != nil {
+				fmt.Println(err)
+			}
+		case err := <-errchan:
+			fmt.Println(err)
 		}
-		assets, err := exchangeService.FetchBalance(ctx, e.Assets)
-		if err != nil {
-			return nil, time.Time{}, err
-		}
-		e.Assets = assets
-		account.Exchanges[key] = e
-		err = account.Save(dir)
-		if err != nil {
-			return nil, time.Time{}, err
-		}
-		exchanges[key] = assets
 	}
 	return exchanges, time.Now(), nil
 }
