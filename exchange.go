@@ -24,9 +24,9 @@ type kucoinService struct {
 	client *kucoin.ApiService
 }
 
-type ExchangeMessage struct {
-	Key      string
-	Exchange ExchangeAccount
+type AssetMessage struct {
+	Key    string
+	Assets map[string]Asset
 }
 
 func NewService() ExchangeService { return &binanceService{} }
@@ -36,11 +36,14 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	var exchangeService ExchangeService
-	exchan := make(chan ExchangeMessage)
+
+	exchan := make(chan AssetMessage)
+	defer close(exchan)
 	errchan := make(chan error)
+	defer close(errchan)
 	for key, e := range account.Exchanges {
-		go func(key string, e ExchangeAccount, ch chan ExchangeMessage, errch chan error) {
+		go func(key string, e ExchangeAccount, ch chan AssetMessage, errch chan error) {
+			var exchangeService ExchangeService
 			switch key {
 			case "binance":
 				exchangeService = &binanceService{binance2.NewClient(e.APIKey, e.Secret)}
@@ -52,6 +55,9 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 					kucoin.ApiPassPhraseOption(e.Phrase),
 					kucoin.ApiKeyVersionOption(kucoin.ApiKeyVersionV2),
 				)}
+			default:
+				errch <- fmt.Errorf("unhandled exchange key '%s'", key)
+				return
 			}
 			assets, err := exchangeService.FetchBalance(ctx, e.Assets)
 			if err != nil {
@@ -59,7 +65,7 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 				return
 			}
 			e.Assets = assets
-			exchan <- ExchangeMessage{key, e}
+			exchan <- AssetMessage{key, assets}
 		}(key, e, exchan, errchan)
 	}
 	exchanges := map[string]map[string]Asset{}
@@ -67,8 +73,10 @@ func Update(ctx context.Context, dir, token string) (map[string]map[string]Asset
 	for i := 0; i < len(account.Exchanges); i++ {
 		select {
 		case message := <-exchan:
-			account.Exchanges[message.Key] = message.Exchange
-			exchanges[message.Key] = message.Exchange.Assets
+			exchange := account.Exchanges[message.Key]
+			exchange.Assets = message.Assets
+			account.Exchanges[message.Key] = exchange
+			exchanges[message.Key] = message.Assets
 			err := account.Save(dir)
 			if err != nil {
 				fmt.Println(err)
